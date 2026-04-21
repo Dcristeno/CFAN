@@ -73,7 +73,7 @@ class Evaluator():
 
         return qfeats.cuda(), gfeats.cuda(), qids, gids
     
-    def eval(self, model, i2t_metric=False):
+    def eval(self, model, i2t_metric=False, return_details=False):
 
         qfeats, gfeats, qids, gids = self._compute_embedding(model)
 
@@ -86,8 +86,16 @@ class Evaluator():
 
         t2i_cmc, t2i_mAP, t2i_mINP, _ = rank(similarity=similarity, q_pids=qids, g_pids=gids, max_rank=10, get_mAP=True)
         t2i_cmc, t2i_mAP, t2i_mINP = t2i_cmc.numpy(), t2i_mAP.numpy(), t2i_mINP.numpy()
+        results = {
+            "t2i_R1": float(t2i_cmc[0]),
+            "t2i_R5": float(t2i_cmc[4]),
+            "t2i_R10": float(t2i_cmc[9]),
+            "t2i_RSum": float(t2i_cmc[0] + t2i_cmc[4] + t2i_cmc[9]),
+            "t2i_mAP": float(t2i_mAP),
+            "t2i_mINP": float(t2i_mINP),
+        }
         table = PrettyTable(["task", "R1", "R5", "R10", "RSum", "mAP", "mINP"])
-        table.add_row(['t2i', t2i_cmc[0], t2i_cmc[4], t2i_cmc[9], t2i_cmc[0] + t2i_cmc[4] + t2i_cmc[9], t2i_mAP, t2i_mINP])
+        table.add_row(['t2i', t2i_cmc[0], t2i_cmc[4], t2i_cmc[9], results["t2i_RSum"], t2i_mAP, t2i_mINP])
 
         if i2t_metric:
             i2t_cmc, i2t_mAP, i2t_mINP, _ = rank(similarity=similarity.t(), q_pids=gids, g_pids=qids, max_rank=10, get_mAP=True)
@@ -101,5 +109,6 @@ class Evaluator():
         table.custom_format["mAP"] = lambda f, v: f"{v:.3f}"
         table.custom_format["mINP"] = lambda f, v: f"{v:.3f}"
         self.logger.info('\n' + str(table))
-        
-        return t2i_cmc[0] + t2i_cmc[4] + t2i_cmc[9]
+        if return_details:
+            return results
+        return results["t2i_RSum"]

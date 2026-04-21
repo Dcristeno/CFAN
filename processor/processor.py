@@ -144,10 +144,13 @@ def do_pretrain(start_epoch, args, model, train_loader, evaluator0,evaluator1,ev
         logger.info(f"best R1: {best_top1_0}, {best_top1_1}, {best_top1_2} at epoch {arguments['epoch']}")
 
 
-def do_inference(model, test_img_loader, test_txt_loader):
+def do_inference(model, test_img_loader, test_txt_loader, swanlab_run=None):
 
     logger = logging.getLogger("IRRA.test")
     logger.info("Enter inferencing")
 
     evaluator = Evaluator(test_img_loader, test_txt_loader)
-    top1 = evaluator.eval(model.eval())
+    metrics = evaluator.eval(model.eval(), return_details=True)
+    if swanlab_run is not None:
+        swanlab_run.log({f"test/{k}": v for k, v in metrics.items()})
+    return metrics

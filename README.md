@@ -8,6 +8,7 @@ This repo snapshot is a cleaned working copy of the author-provided CFAN baselin
 - Added a safer evaluation entry that can load the author checkpoint directly.
 - Normalized the legacy author loss naming `sdm+fa` to the finetune code's actual implementation names `cda+fta`.
 - Added runnable shell scripts for finetuning and evaluation.
+- Enabled SwanLab logging in both evaluation and finetuning scripts by default.
 
 ## Expected dataset layout
 
@@ -33,6 +34,7 @@ bash eval_aeri_cfan.sh
 ```
 
 The default config used by this script is [configs/aeri_cfan_baseline.yaml](configs/aeri_cfan_baseline.yaml).
+It logs test metrics to SwanLab by default with experiment name `aeri_cfan_author_eval`.
 
 ## Finetune CFAN on AERI-PEDES
 
@@ -42,6 +44,8 @@ FINETUNE_INIT=pretrain/HAMbest0.pth \
 CUDA_VISIBLE_DEVICES=0 \
 bash finetune.sh
 ```
+
+This script logs training and validation metrics to SwanLab by default with experiment name `cfan_aeri_finetune`.
 
 ## Notes on the provided weights
 

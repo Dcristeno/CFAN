@@ -11,6 +11,11 @@ from model import build_model
 from model.build_finetune import build_finetune_model
 from utils.iotools import load_train_configs
 
+try:
+    import swanlab
+except ImportError:
+    swanlab = None
+
 
 def normalize_finetune_loss_names(loss_names):
     tokens = [token.strip() for token in loss_names.split('+') if token.strip()]
@@ -40,6 +45,10 @@ if __name__ == '__main__':
     parser.add_argument("--output_dir", default="", help="Override output_dir from config for local logs")
     parser.add_argument("--loss_names", default="", help="Override loss names from config")
     parser.add_argument("--use_finetune_model", action="store_true", help="Force build_finetune_model for evaluation")
+    parser.add_argument("--use_swanlab", action="store_true", help="Log test metrics to SwanLab")
+    parser.add_argument("--swanlab_project", default="CFAN", help="SwanLab project name")
+    parser.add_argument("--swanlab_experiment", default="", help="Optional SwanLab experiment name")
+    parser.add_argument("--swanlab_mode", default="cloud", help="SwanLab mode, e.g. cloud or local")
     args_cli = parser.parse_args()
 
     args = load_train_configs(args_cli.config_file)
@@ -71,4 +80,23 @@ if __name__ == '__main__':
     checkpointer = Checkpointer(model)
     checkpointer.load(f=checkpoint_path)
     model.to("cuda")
-    do_inference(model, test_img_loader, test_txt_loader)
+
+    swanlab_run = None
+    if args_cli.use_swanlab:
+        if swanlab is None:
+            raise ImportError("SwanLab is not installed. Please run `pip install swanlab` before using --use_swanlab.")
+        swanlab_run = swanlab.init(
+            project=args_cli.swanlab_project,
+            experiment_name=args_cli.swanlab_experiment or f"{args.name}_eval",
+            config={
+                "config_file": args_cli.config_file,
+                "checkpoint": checkpoint_path,
+                "dataset_name": args.dataset_name,
+                "root_dir": args.root_dir,
+                "loss_names": args.loss_names,
+            },
+            mode=args_cli.swanlab_mode,
+            logdir=args.output_dir,
+        )
+
+    do_inference(model, test_img_loader, test_txt_loader, swanlab_run=swanlab_run)
