@@ -40,7 +40,7 @@ pretrain: ''
 pretrain_choice: ViT-B/16
 resume: false
 resume_ckpt_file: ''
-root_dir: /data1/Datasets/ReID/
+root_dir: /home/wuyong/datasets
 sampler: random
 stride_size: 16
 target_lr: 0

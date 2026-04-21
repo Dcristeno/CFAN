@@ -14,7 +14,7 @@ This repo snapshot is a cleaned working copy of the author-provided CFAN baselin
 Set `DATA_ROOT` to the parent directory that contains `AERI-PEDES`, for example:
 
 ```bash
-/data1/Datasets/ReID/AERI-PEDES
+/home/wuyong/datasets/AERI-PEDES
 ```
 
 Inside `AERI-PEDES`, CFAN expects at least:
@@ -26,8 +26,8 @@ Inside `AERI-PEDES`, CFAN expects at least:
 ## Evaluate the provided author checkpoint
 
 ```bash
-DATA_ROOT=/data1/Datasets/ReID \
-CHECKPOINT_PATH=/data1/weights/CFAN_weights/best0.pth \
+DATA_ROOT=/home/wuyong/datasets \
+CHECKPOINT_PATH=/home/wuyong/data/weights/CFAN_weights/best0.pth \
 CUDA_VISIBLE_DEVICES=0 \
 bash eval_aeri_cfan.sh
 ```
@@ -37,7 +37,7 @@ The default config used by this script is [configs/aeri_cfan_baseline.yaml](conf
 ## Finetune CFAN on AERI-PEDES
 
 ```bash
-DATA_ROOT=/data1/Datasets/ReID \
+DATA_ROOT=/home/wuyong/datasets \
 FINETUNE_INIT=pretrain/HAMbest0.pth \
 CUDA_VISIBLE_DEVICES=0 \
 bash finetune.sh
