@@ -218,6 +218,28 @@ def compute_selective_align_loss(aerial_fetures, ground_features, text_fetures, 
 
     return loss
 
+def compute_ground_to_aerial_bridge_loss(
+    aerial_fetures,
+    ground_features,
+    text_fetures,
+    pid,
+    logit_scale,
+    ground_text_weight=1.0,
+    ground_aerial_weight=1.0,
+):
+    """
+    Explicit bridge supervision for AERI:
+    1. align text with cleaner ground-view features
+    2. use ground-view features as a teacher to pull aerial features closer
+    """
+    if ground_features is None:
+        raise ValueError("ground_to_aerial_bridge_loss requires ground_features, but got None.")
+
+    ground_text_loss = compute_sdm(ground_features, text_fetures, pid, logit_scale)
+    ground_aerial_loss = compute_sdm(aerial_fetures, ground_features.detach(), pid, logit_scale)
+
+    return ground_text_weight * ground_text_loss + ground_aerial_weight * ground_aerial_loss
+
 def compute_fa_loss(S_t2v, S_v2t, pid, logit_scale,epsilon=1e-8):
     batch_size = S_t2v.shape[0]
     pid = pid.reshape((batch_size, 1))
@@ -382,4 +404,3 @@ def compute_cmpm(image_embeddings, text_embeddings, labels, epsilon=1e-8):
     cmpm_loss = torch.mean(torch.sum(i2t_loss, dim=1)) + torch.mean(torch.sum(t2i_loss, dim=1))
 
     return cmpm_loss
-

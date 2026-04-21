@@ -4,6 +4,7 @@ import random
 import time
 import torch
 from datasets.build import build_filter_loader
+from datasets.build import build_finetune_train_loader
 from model import objectives
 from utils.meter import AverageMeter
 from utils.metrics import Evaluator
@@ -32,6 +33,7 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
     meters = {
         "loss": AverageMeter(),
         "cda_loss": AverageMeter(),
+        "bridge_loss": AverageMeter(),
         "fta_loss": AverageMeter(),
         "entropy_loss": AverageMeter(),
         "fa_triplet_loss": AverageMeter(),
@@ -54,6 +56,12 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
             meter.reset()
         model.train()
 
+        if getattr(args, "train_samples_per_id", 0) > 0:
+            train_loader = build_finetune_train_loader(args, trainset, epoch=epoch)
+            logger.info(
+                f"Epoch[{epoch}] rebuilt train loader with per-id sampling: k={args.train_samples_per_id}, samples={len(train_loader.dataset)}"
+            )
+
         for n_iter, batch in enumerate(train_loader):
             batch = {k: v.cuda() for k, v in batch.items()}
            
@@ -65,6 +73,7 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
             
             meters['loss'].update(total_loss.item(), batch_size)
             meters['cda_loss'].update(ret.get('cda_loss', 0), batch_size)
+            meters['bridge_loss'].update(ret.get('bridge_loss', 0), batch_size)
             meters['fta_loss'].update(ret.get('fta_loss', 0), batch_size)
 
             optimizer.zero_grad()

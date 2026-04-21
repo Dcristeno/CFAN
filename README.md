@@ -47,6 +47,32 @@ bash finetune.sh
 
 This script logs training and validation metrics to SwanLab by default with experiment name `cfan_aeri_finetune`.
 
+To run the cleaner `CDA+FTA` baseline with AERI per-ID sparse sampling, for example `k=2`, run:
+
+```bash
+DATA_ROOT=/home/wuyong/datasets \
+FINETUNE_INIT=/home/wuyong/data/HAM/HAM_checkpoint/random100w_2HAMcaptions/best0.pth \
+LOSS_NAMES='cda+fta' \
+TRAIN_SAMPLES_PER_ID=2 \
+CUDA_VISIBLE_DEVICES=0 \
+bash finetune.sh
+```
+
+To enable the stronger ground-to-aerial bridge loss for AERI experiments, run:
+
+```bash
+DATA_ROOT=/home/wuyong/datasets \
+FINETUNE_INIT=/home/wuyong/data/HAM/HAM_checkpoint/random100w_2HAMcaptions/best0.pth \
+LOSS_NAMES='cda+fta+bridge' \
+BRIDGE_LOSS_WEIGHT=2.0 \
+BRIDGE_GROUND_TEXT_WEIGHT=1.0 \
+BRIDGE_GROUND_AERIAL_WEIGHT=2.0 \
+CUDA_VISIBLE_DEVICES=0 \
+bash finetune.sh
+```
+
+The bridge loss first aligns `text <-> ground`, then uses `ground -> aerial` supervision to pull aerial features toward the cleaner ground-view space.
+
 ## Notes on the provided weights
 
 The provided checkpoint contains finetune-only modules such as `query` and `mlp_logsigma2`, so evaluation should use `build_finetune_model`. The cleaned `test.py` now auto-detects this from the checkpoint.

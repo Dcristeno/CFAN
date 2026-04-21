@@ -20,10 +20,16 @@ except ImportError:
 def normalize_finetune_loss_names(loss_names):
     tokens = [token.strip() for token in loss_names.split('+') if token.strip()]
     normalized = []
-    finetune_alias_seen = any(token in {"fa", "fta", "cda"} for token in tokens)
+    alias_map = {
+        "fa": "fta",
+        "g2a": "bridge",
+        "ga": "bridge",
+        "ga_bridge": "bridge",
+        "bridge_loss": "bridge",
+    }
+    finetune_alias_seen = any(token in {"fa", "fta", "cda", "bridge", "g2a", "ga", "ga_bridge"} for token in tokens)
     for token in tokens:
-        if token == "fa":
-            token = "fta"
+        token = alias_map.get(token, token)
         if finetune_alias_seen and token == "sdm":
             token = "cda"
         if token not in normalized:
