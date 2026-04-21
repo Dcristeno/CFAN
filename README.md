@@ -40,7 +40,7 @@ It logs test metrics to SwanLab by default with experiment name `aeri_cfan_autho
 
 ```bash
 DATA_ROOT=/home/wuyong/datasets \
-FINETUNE_INIT=pretrain/HAMbest0.pth \
+FINETUNE_INIT=/home/wuyong/data/HAM/HAM_checkpoint/random100w_2HAMcaptions/best0.pth \
 CUDA_VISIBLE_DEVICES=0 \
 bash finetune.sh
 ```

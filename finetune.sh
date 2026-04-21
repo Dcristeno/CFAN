@@ -2,9 +2,9 @@
 set -euo pipefail
 
 DATASET_NAME="${DATASET_NAME:-AERI-PEDES}"
-DATA_ROOT="${DATA_ROOT:-/data1/Datasets/ReID}"
+DATA_ROOT="${DATA_ROOT:-/home/wuyong/datasets}"
 CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
-FINETUNE_INIT="${FINETUNE_INIT:-pretrain/HAMbest0.pth}"
+FINETUNE_INIT="${FINETUNE_INIT:-/home/wuyong/data/HAM/HAM_checkpoint/random100w_2HAMcaptions/best0.pth}"
 RUN_NAME="${RUN_NAME:-cfan_finetune}"
 SWANLAB_PROJECT="${SWANLAB_PROJECT:-CFAN}"
 SWANLAB_EXPERIMENT="${SWANLAB_EXPERIMENT:-cfan_aeri_finetune}"
