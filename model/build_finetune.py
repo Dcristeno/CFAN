@@ -154,8 +154,9 @@ class IRRA(nn.Module):
                 t_feats,
                 batch['pids'],
                 logit_scale,
-                ground_text_weight=self.args.bridge_ground_text_weight,
-                ground_aerial_weight=self.args.bridge_ground_aerial_weight,
+                pair_weight=self.args.bridge_pair_weight,
+                distill_weight=self.args.bridge_distill_weight,
+                distill_temp=self.args.bridge_distill_temp,
             )
             ret.update({'bridge_loss': bridge_loss * self.args.bridge_loss_weight})
 

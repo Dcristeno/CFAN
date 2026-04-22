@@ -38,8 +38,9 @@ def get_args():
     parser.add_argument("--mlm_loss_weight", type=float, default=1.0, help="mlm loss weight")
     parser.add_argument("--id_loss_weight", type=float, default=1.0, help="id loss weight")
     parser.add_argument("--bridge_loss_weight", type=float, default=1.0, help="overall weight for the explicit ground-to-aerial bridge loss")
-    parser.add_argument("--bridge_ground_text_weight", type=float, default=1.0, help="weight of the text-to-ground term inside the bridge loss")
-    parser.add_argument("--bridge_ground_aerial_weight", type=float, default=1.0, help="weight of the ground-to-aerial term inside the bridge loss")
+    parser.add_argument("--bridge_pair_weight", type=float, default=1.0, help="weight of the pair-level aerial-to-ground bridge term")
+    parser.add_argument("--bridge_distill_weight", type=float, default=1.0, help="weight of the ground-to-text -> aerial-to-text relation distillation term")
+    parser.add_argument("--bridge_distill_temp", type=float, default=0.07, help="temperature for the relation distillation bridge term")
     
     ######################## vison trainsformer settings ########################
     parser.add_argument("--img_size", type=tuple, default=(384, 128))

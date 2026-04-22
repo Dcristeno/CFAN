@@ -104,15 +104,17 @@ To enable the stronger ground-to-aerial bridge loss for AERI experiments, run:
 ```bash
 DATA_ROOT=/home/wuyong/datasets \
 FINETUNE_INIT=/home/wuyong/data/HAM/HAM_checkpoint/random100w_2HAMcaptions/best0.pth \
-LOSS_NAMES='cda+fta+bridge' \
+LOSS_NAMES='cda+bridge' \
+TRAIN_SAMPLES_PER_ID=2 \
 BRIDGE_LOSS_WEIGHT=2.0 \
-BRIDGE_GROUND_TEXT_WEIGHT=1.0 \
-BRIDGE_GROUND_AERIAL_WEIGHT=2.0 \
+BRIDGE_PAIR_WEIGHT=1.0 \
+BRIDGE_DISTILL_WEIGHT=1.0 \
+BRIDGE_DISTILL_TEMP=0.07 \
 CUDA_VISIBLE_DEVICES=0 \
 bash finetune.sh
 ```
 
-The bridge loss first aligns `text <-> ground`, then uses `ground -> aerial` supervision to pull aerial features toward the cleaner ground-view space.
+The strong bridge loss first pulls each aerial feature toward its detached ground-view teacher, then distills the full ground-text relation matrix into the aerial-text relation matrix.
 
 ## Notes on the provided weights
 

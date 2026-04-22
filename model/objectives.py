@@ -224,21 +224,39 @@ def compute_ground_to_aerial_bridge_loss(
     text_fetures,
     pid,
     logit_scale,
-    ground_text_weight=1.0,
-    ground_aerial_weight=1.0,
+    pair_weight=1.0,
+    distill_weight=1.0,
+    distill_temp=0.07,
 ):
     """
-    Explicit bridge supervision for AERI:
-    1. align text with cleaner ground-view features
-    2. use ground-view features as a teacher to pull aerial features closer
+    Strong bridge supervision for AERI:
+    1. pair-level bridge: pull aerial features toward detached ground teachers
+    2. relation-level bridge: make aerial-text similarities mimic ground-text similarities
     """
     if ground_features is None:
         raise ValueError("ground_to_aerial_bridge_loss requires ground_features, but got None.")
 
-    ground_text_loss = compute_sdm(ground_features, text_fetures, pid, logit_scale)
-    ground_aerial_loss = compute_sdm(aerial_fetures, ground_features.detach(), pid, logit_scale)
+    aerial_norm = F.normalize(aerial_fetures, dim=-1)
+    ground_norm = F.normalize(ground_features, dim=-1).detach()
+    text_norm = F.normalize(text_fetures, dim=-1)
 
-    return ground_text_weight * ground_text_loss + ground_aerial_weight * ground_aerial_loss
+    pair_loss = (1.0 - torch.sum(aerial_norm * ground_norm, dim=-1)).mean()
+
+    distill_temp = max(float(distill_temp), 1e-6)
+    student_logits = aerial_norm @ text_norm.t() / distill_temp
+    teacher_logits = ground_norm @ text_norm.t() / distill_temp
+
+    student_row_log_prob = F.log_softmax(student_logits, dim=1)
+    teacher_row_prob = F.softmax(teacher_logits, dim=1)
+    row_distill_loss = F.kl_div(student_row_log_prob, teacher_row_prob, reduction="batchmean")
+
+    student_col_log_prob = F.log_softmax(student_logits.t(), dim=1)
+    teacher_col_prob = F.softmax(teacher_logits.t(), dim=1)
+    col_distill_loss = F.kl_div(student_col_log_prob, teacher_col_prob, reduction="batchmean")
+
+    relation_distill_loss = 0.5 * (row_distill_loss + col_distill_loss)
+
+    return pair_weight * pair_loss + distill_weight * relation_distill_loss
 
 def compute_fa_loss(S_t2v, S_v2t, pid, logit_scale,epsilon=1e-8):
     batch_size = S_t2v.shape[0]
