@@ -8,7 +8,7 @@ This repo snapshot is a cleaned working copy of the author-provided CFAN baselin
 - Added a safer evaluation entry that can load the author checkpoint directly.
 - Normalized the legacy author loss naming `sdm+fa` to the finetune code's actual implementation names `cda+fta`.
 - Added runnable shell scripts for finetuning and evaluation.
-- Enabled SwanLab logging in both evaluation and finetuning scripts by default.
+- Made SwanLab logging opt-in in both evaluation and finetuning scripts, so training does not stall on network reconnects by default.
 
 ## Expected dataset layout
 
@@ -34,7 +34,7 @@ bash eval_aeri_cfan.sh
 ```
 
 The default config used by this script is [configs/aeri_cfan_baseline.yaml](configs/aeri_cfan_baseline.yaml).
-It logs test metrics to SwanLab by default with experiment name `aeri_cfan_author_eval`.
+To enable SwanLab logging for evaluation, add `USE_SWANLAB=1`.
 
 ## Finetune CFAN on AERI-PEDES
 
@@ -45,7 +45,7 @@ CUDA_VISIBLE_DEVICES=0 \
 bash finetune.sh
 ```
 
-This script logs training and validation metrics to SwanLab by default with experiment name `cfan_aeri_finetune`.
+To enable SwanLab logging for finetuning, add `USE_SWANLAB=1`.
 
 To run the cleaner `CDA+FTA` baseline with AERI per-ID sparse sampling, for example `k=2`, run:
 
@@ -54,6 +54,18 @@ DATA_ROOT=/home/wuyong/datasets \
 FINETUNE_INIT=/home/wuyong/data/HAM/HAM_checkpoint/random100w_2HAMcaptions/best0.pth \
 LOSS_NAMES='cda+fta' \
 TRAIN_SAMPLES_PER_ID=2 \
+CUDA_VISIBLE_DEVICES=0 \
+bash finetune.sh
+```
+
+To replace random `k=2` sampling with a simple heuristic selector that keeps the sharpest aerial images per ID, run:
+
+```bash
+DATA_ROOT=/home/wuyong/datasets \
+FINETUNE_INIT=/home/wuyong/data/HAM/HAM_checkpoint/random100w_2HAMcaptions/best0.pth \
+LOSS_NAMES='cda' \
+TRAIN_SAMPLES_PER_ID=2 \
+TRAIN_SAMPLE_STRATEGY='sharpness_topk' \
 CUDA_VISIBLE_DEVICES=0 \
 bash finetune.sh
 ```

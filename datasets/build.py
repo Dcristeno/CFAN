@@ -2,6 +2,7 @@ import logging
 import random
 import torch
 import torchvision.transforms as T
+import numpy as np
 from torch.utils.data import DataLoader
 from datasets.luperson import LuPerson_PEDES
 from datasets.sampler import RandomIdentitySampler
@@ -9,6 +10,7 @@ from datasets.sampler_ddp import RandomIdentitySampler_DDP
 from torch.utils.data.distributed import DistributedSampler
 
 from utils.comm import get_world_size
+from utils.iotools import read_image
 
 from .bases import FilterDataset, ImageDataset, TextDataset, ImageTextDataset, ImageTextMLMDataset
 
@@ -87,7 +89,34 @@ def collate(batch):
 
     return batch_tensor_dict
 
-def sample_train_dataset_per_pid(dataset, samples_per_id, epoch_seed=None):
+
+_IMAGE_SHARPNESS_SCORE_CACHE = {}
+
+
+def _compute_image_sharpness_score(img_path):
+    cached_score = _IMAGE_SHARPNESS_SCORE_CACHE.get(img_path)
+    if cached_score is not None:
+        return cached_score
+
+    gray = np.asarray(read_image(img_path).convert("L"), dtype=np.float32)
+    if gray.size == 0:
+        score = 0.0
+    else:
+        dx = gray[:, 1:] - gray[:, :-1]
+        dy = gray[1:, :] - gray[:-1, :]
+        score = float(dx.var() + dy.var())
+
+    _IMAGE_SHARPNESS_SCORE_CACHE[img_path] = score
+    return score
+
+
+def _rank_pid_samples(pid_samples, strategy):
+    if strategy == "sharpness_topk":
+        return sorted(pid_samples, key=lambda sample: _compute_image_sharpness_score(sample[1]), reverse=True)
+    return list(pid_samples)
+
+
+def sample_train_dataset_per_pid(dataset, samples_per_id, epoch_seed=None, strategy="random"):
     if samples_per_id <= 0:
         return dataset
 
@@ -100,12 +129,22 @@ def sample_train_dataset_per_pid(dataset, samples_per_id, epoch_seed=None):
     sampled_dataset = []
     for pid in sorted(pid_to_samples.keys()):
         pid_samples = pid_to_samples[pid]
-        if len(pid_samples) >= samples_per_id:
-            sampled_dataset.extend(rng.sample(pid_samples, samples_per_id))
+        ranked_pid_samples = _rank_pid_samples(pid_samples, strategy)
+
+        if strategy == "random":
+            if len(pid_samples) >= samples_per_id:
+                sampled_dataset.extend(rng.sample(pid_samples, samples_per_id))
+            else:
+                sampled_dataset.extend(rng.choices(pid_samples, k=samples_per_id))
         else:
-            sampled_dataset.extend(rng.choices(pid_samples, k=samples_per_id))
+            if len(ranked_pid_samples) >= samples_per_id:
+                sampled_dataset.extend(ranked_pid_samples[:samples_per_id])
+            else:
+                for idx in range(samples_per_id):
+                    sampled_dataset.append(ranked_pid_samples[idx % len(ranked_pid_samples)])
 
     return sampled_dataset
+
 
 def build_finetune_train_loader(args, train_dataset, epoch=None):
     train_transforms = build_transforms(img_size=args.img_size,
@@ -115,6 +154,7 @@ def build_finetune_train_loader(args, train_dataset, epoch=None):
         train_dataset,
         args.train_samples_per_id,
         epoch_seed=epoch,
+        strategy=args.train_sample_strategy,
     )
     train_set = ImageTextMLMDataset(sampled_dataset,
                                     train_transforms,
@@ -271,7 +311,7 @@ def build_zero_shot_loader(args, finetune=False):
     logger.info('using random sampler')
     if getattr(args, "train_samples_per_id", 0) > 0:
         logger.info(
-            f'using per-id epoch sampling: {args.train_samples_per_id} samples per id before shuffle'
+            f'using per-id epoch sampling: strategy={args.train_sample_strategy}, {args.train_samples_per_id} samples per id before shuffle'
         )
         train_loader = build_finetune_train_loader(args, syn_dataset.train, epoch=1)
     else:

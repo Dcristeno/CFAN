@@ -80,6 +80,7 @@ def get_args():
     parser.add_argument("--test_batch_size", type=int, default=512)
     parser.add_argument("--num_workers", type=int, default=8)
     parser.add_argument("--train_samples_per_id", type=int, default=0, help="if > 0, resample the finetune train set each epoch with k samples per identity")
+    parser.add_argument("--train_sample_strategy", type=str, default="random", help="per-id sampling strategy: random or sharpness_topk")
     parser.add_argument("--test", dest='training', default=True, action='store_false')
 
     args = parser.parse_args()

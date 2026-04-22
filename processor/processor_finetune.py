@@ -59,7 +59,7 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
         if getattr(args, "train_samples_per_id", 0) > 0:
             train_loader = build_finetune_train_loader(args, trainset, epoch=epoch)
             logger.info(
-                f"Epoch[{epoch}] rebuilt train loader with per-id sampling: k={args.train_samples_per_id}, samples={len(train_loader.dataset)}"
+                f"Epoch[{epoch}] rebuilt train loader with per-id sampling: strategy={args.train_sample_strategy}, k={args.train_samples_per_id}, samples={len(train_loader.dataset)}"
             )
 
         for n_iter, batch in enumerate(train_loader):
