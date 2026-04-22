@@ -141,6 +141,54 @@ def _cosine_similarity(vec_a, vec_b):
     return float(np.dot(vec_a, vec_b) / denom)
 
 
+def _weighted_random_choice(items, weights, rng):
+    total_weight = sum(weights)
+    if total_weight <= 0:
+        return rng.choice(items)
+
+    threshold = rng.random() * total_weight
+    cumulative = 0.0
+    for item, weight in zip(items, weights):
+        cumulative += weight
+        if cumulative >= threshold:
+            return item
+    return items[-1]
+
+
+def _sample_pid_samples_random_diverse(pid_samples, samples_per_id, rng, diversity_weight=1.0):
+    if len(pid_samples) <= samples_per_id:
+        if len(pid_samples) == samples_per_id:
+            return list(pid_samples)
+        expanded = list(pid_samples)
+        while len(expanded) < samples_per_id:
+            expanded.append(rng.choice(pid_samples))
+        return expanded
+
+    descriptors = {sample[1]: _compute_image_descriptor(sample[1]) for sample in pid_samples}
+
+    selected = [rng.choice(pid_samples)]
+    remaining = [sample for sample in pid_samples if sample != selected[0]]
+
+    while remaining and len(selected) < samples_per_id:
+        weights = []
+        for sample in remaining:
+            max_similarity = max(
+                _cosine_similarity(descriptors[sample[1]], descriptors[selected_sample[1]])
+                for selected_sample in selected
+            )
+            diversity_score = np.clip((1.0 - max_similarity) / 2.0, 1e-6, 1.0)
+            weights.append(float(diversity_score ** diversity_weight))
+
+        chosen = _weighted_random_choice(remaining, weights, rng)
+        selected.append(chosen)
+        remaining.remove(chosen)
+
+    while len(selected) < samples_per_id:
+        selected.append(rng.choice(selected))
+
+    return selected
+
+
 def _select_mid_sharpness_diverse_samples(
     pid_samples,
     samples_per_id,
@@ -244,6 +292,15 @@ def sample_train_dataset_per_pid(
                 sampled_dataset.extend(rng.sample(pid_samples, samples_per_id))
             else:
                 sampled_dataset.extend(rng.choices(pid_samples, k=samples_per_id))
+        elif strategy == "random_diverse":
+            sampled_dataset.extend(
+                _sample_pid_samples_random_diverse(
+                    pid_samples,
+                    samples_per_id,
+                    rng,
+                    diversity_weight=diversity_weight,
+                )
+            )
         elif strategy == "sharpness_topk":
             ranked_pid_samples = sorted(pid_samples, key=lambda sample: _compute_image_sharpness_score(sample[1]), reverse=True)
             if len(ranked_pid_samples) >= samples_per_id:

@@ -86,6 +86,19 @@ CUDA_VISIBLE_DEVICES=0 \
 bash finetune.sh
 ```
 
+To keep the strong random `k=2` baseline while discouraging near-duplicate aerial frames, run:
+
+```bash
+DATA_ROOT=/home/wuyong/datasets \
+FINETUNE_INIT=/home/wuyong/data/HAM/HAM_checkpoint/random100w_2HAMcaptions/best0.pth \
+LOSS_NAMES='cda' \
+TRAIN_SAMPLES_PER_ID=2 \
+TRAIN_SAMPLE_STRATEGY='random_diverse' \
+TRAIN_SAMPLE_DIVERSITY_WEIGHT=1.0 \
+CUDA_VISIBLE_DEVICES=0 \
+bash finetune.sh
+```
+
 To enable the stronger ground-to-aerial bridge loss for AERI experiments, run:
 
 ```bash
