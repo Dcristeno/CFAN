@@ -473,12 +473,40 @@ def build_zero_shot_loader(args, finetune=False):
     else:
         syn_dataset = __factory[args.pretrain](root=args.root_dir)
 
-    ds = syn_dataset.test
-    val_img_set = ImageDataset(ds['image_pids'], ds['img_paths'],
-                                val_transforms)
-    val_txt_set = TextDataset(ds['caption_pids'],
-                                ds['captions'],
+    if finetune:
+        train_dataset, val_dataset = split_finetune_train_and_val(
+            syn_dataset.train,
+            getattr(args, "finetune_val_ratio", 0.1),
+            getattr(args, "finetune_val_seed", 1),
+        )
+        val_img_set = ImageDataset(val_dataset['image_pids'], val_dataset['img_paths'],
+                                    val_transforms)
+        val_txt_set = TextDataset(val_dataset['caption_pids'],
+                                    val_dataset['captions'],
+                                    text_length=args.text_length)
+        train_set = ImageTextMLMDataset(train_dataset,
+                                train_transforms,
                                 text_length=args.text_length)
+        num_classes = max((sample[0] for sample in train_dataset), default=-1) + 1
+
+        logger.info(
+            f'using held-out finetune validation split: train_samples={len(train_dataset)}, '
+            f'val_images={len(val_dataset["img_paths"])}, val_texts={len(val_dataset["captions"])}, '
+            f'val_ratio={getattr(args, "finetune_val_ratio", 0.1)}, val_seed={getattr(args, "finetune_val_seed", 1)}'
+        )
+    else:
+        ds = syn_dataset.test
+        val_img_set = ImageDataset(ds['image_pids'], ds['img_paths'],
+                                    val_transforms)
+        val_txt_set = TextDataset(ds['caption_pids'],
+                                    ds['captions'],
+                                    text_length=args.text_length)
+        train_set = ImageTextMLMDataset(syn_dataset.train,
+                                train_transforms,
+                                text_length=args.text_length)
+        train_dataset = syn_dataset.train
+        num_classes = len(syn_dataset.train)
+
     val_img_loader = DataLoader(val_img_set,
                                 batch_size=args.batch_size,
                                 shuffle=False,
@@ -487,18 +515,13 @@ def build_zero_shot_loader(args, finetune=False):
                                 batch_size=args.batch_size,
                                 shuffle=False,
                                 num_workers=num_workers)
-    
-    train_set = ImageTextMLMDataset(syn_dataset.train,
-                            train_transforms,
-                            text_length=args.text_length)
-    num_classes = len(syn_dataset.train)
 
     logger.info('using random sampler')
     if getattr(args, "train_samples_per_id", 0) > 0:
         logger.info(
             f'using per-id epoch sampling: strategy={args.train_sample_strategy}, {args.train_samples_per_id} samples per id before shuffle'
         )
-        train_loader = build_finetune_train_loader(args, syn_dataset.train, epoch=1)
+        train_loader = build_finetune_train_loader(args, train_dataset, epoch=1)
     else:
         train_loader = DataLoader(train_set,
                                     batch_size=args.batch_size,
@@ -506,7 +529,57 @@ def build_zero_shot_loader(args, finetune=False):
                                     num_workers=num_workers,
                                     )
 
-    return syn_dataset.train, train_loader, val_img_loader, val_txt_loader, num_classes
+    return train_dataset, train_loader, val_img_loader, val_txt_loader, num_classes
+
+
+def split_finetune_train_and_val(train_dataset, val_ratio, val_seed):
+    pid_to_samples = {}
+    for sample in train_dataset:
+        pid = sample[0]
+        pid_to_samples.setdefault(pid, []).append(sample)
+
+    all_pids = sorted(pid_to_samples.keys())
+    if len(all_pids) < 2:
+        raise ValueError("Need at least two training identities to create a held-out finetune validation split.")
+
+    val_ratio = float(val_ratio)
+    if not (0.0 < val_ratio < 1.0):
+        raise ValueError(f"finetune_val_ratio must be in (0, 1), but got {val_ratio}")
+
+    rng = random.Random(val_seed)
+    shuffled_pids = list(all_pids)
+    rng.shuffle(shuffled_pids)
+
+    num_val_pids = max(1, int(round(len(shuffled_pids) * val_ratio)))
+    num_val_pids = min(num_val_pids, len(shuffled_pids) - 1)
+    val_pids = set(shuffled_pids[:num_val_pids])
+
+    train_split = []
+    val_img_paths = []
+    val_img_pids = []
+    val_captions = []
+    val_caption_pids = []
+
+    for sample in train_dataset:
+        pid, img_path, _, caption = sample[:4]
+        if pid in val_pids:
+            val_img_paths.append(img_path)
+            val_img_pids.append(pid)
+            val_captions.append(caption)
+            val_caption_pids.append(pid)
+        else:
+            train_split.append(sample)
+
+    if not train_split or not val_img_paths or not val_captions:
+        raise ValueError("Failed to create a non-empty finetune train/val split.")
+
+    val_split = {
+        "image_pids": val_img_pids,
+        "img_paths": val_img_paths,
+        "caption_pids": val_caption_pids,
+        "captions": val_captions,
+    }
+    return train_split, val_split
 
 def build_filter_loader(args, dataset):
     logger = logging.getLogger("IRRA.dataset")

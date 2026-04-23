@@ -90,6 +90,8 @@ def get_args():
     parser.add_argument("--batch_size", type=int, default=2)
     parser.add_argument("--test_batch_size", type=int, default=512)
     parser.add_argument("--num_workers", type=int, default=8)
+    parser.add_argument("--finetune_val_ratio", type=float, default=0.1, help="fraction of training identities held out as validation during finetuning")
+    parser.add_argument("--finetune_val_seed", type=int, default=1, help="seed used to split finetune train identities into train/val")
     parser.add_argument("--train_samples_per_id", type=int, default=0, help="if > 0, resample the finetune train set each epoch with k samples per identity")
     parser.add_argument("--train_sample_strategy", type=str, default="random", help="per-id sampling strategy: random, random_diverse, sharpness_topk, or mid_sharpness_diverse")
     parser.add_argument("--train_sample_mid_ratio", type=float, default=0.6, help="fraction of per-id images kept as the middle-sharpness candidate pool")
