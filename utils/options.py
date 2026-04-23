@@ -28,6 +28,9 @@ def get_args():
 
     ## cross modal transfomer setting
     parser.add_argument("--cmt_depth", type=int, default=4, help="cross modal transformer self attn layers")
+    parser.add_argument("--fta_num_query", type=int, default=4, help="number of learned query slots used by FTA")
+    parser.add_argument("--fta_query_mode", type=str, default="static", help="FTA query mode: static or conditioned")
+    parser.add_argument("--fta_query_condition_scale", type=float, default=1.0, help="scale applied to the instance-conditioned FTA query deltas")
     parser.add_argument("--masked_token_rate", type=float, default=0.8, help="masked token rate for mlm task")
     parser.add_argument("--masked_token_unchanged_rate", type=float, default=0.1, help="masked token unchanged rate")
     parser.add_argument("--lr_factor", type=float, default=5.0, help="lr factor for random init self implement module")

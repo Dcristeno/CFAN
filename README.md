@@ -58,6 +58,16 @@ CUDA_VISIBLE_DEVICES=0 \
 bash finetune.sh
 ```
 
+To switch FTA from the original static learned queries to instance-conditioned queries, add:
+
+```bash
+FTA_QUERY_MODE='conditioned' \
+FTA_NUM_QUERY=4 \
+FTA_QUERY_CONDITION_SCALE=1.0 \
+```
+
+In conditioned mode, the model keeps the global query bank, but also predicts modality-specific query deltas from the current aerial/text sample features before cross attention.
+
 To replace random `k=2` sampling with a simple heuristic selector that keeps the sharpest aerial images per ID, run:
 
 ```bash

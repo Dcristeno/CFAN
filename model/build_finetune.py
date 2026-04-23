@@ -21,7 +21,11 @@ class IRRA(nn.Module):
             self._load_aerial_prototypes()
 
         if 'fta' in args.loss_names:  
-            self.num_query = 4
+            self.fta_query_mode = getattr(args, "fta_query_mode", "static").lower()
+            if self.fta_query_mode not in {"static", "conditioned"}:
+                raise ValueError(f"Unsupported fta_query_mode: {self.fta_query_mode}")
+
+            self.num_query = getattr(args, "fta_num_query", 4)
             self.query = nn.Parameter(torch.randn(self.num_query, self.embed_dim))
             
             self.cross_attn = nn.MultiheadAttention(self.embed_dim,
@@ -64,6 +68,24 @@ class IRRA(nn.Module):
                 nn.ReLU(),
                 nn.Linear(self.embed_dim*2, self.embed_dim)
             )
+
+            if self.fta_query_mode == "conditioned":
+                self.visual_query_condition = nn.Sequential(
+                    LayerNorm(self.embed_dim),
+                    nn.Linear(self.embed_dim, self.embed_dim),
+                    QuickGELU(),
+                    nn.Linear(self.embed_dim, self.num_query * self.embed_dim),
+                )
+                self.text_query_condition = nn.Sequential(
+                    LayerNorm(self.embed_dim),
+                    nn.Linear(self.embed_dim, self.embed_dim),
+                    QuickGELU(),
+                    nn.Linear(self.embed_dim, self.num_query * self.embed_dim),
+                )
+                nn.init.normal_(self.visual_query_condition[1].weight, std=fc_std)
+                nn.init.normal_(self.visual_query_condition[3].weight, std=proj_std)
+                nn.init.normal_(self.text_query_condition[1].weight, std=fc_std)
+                nn.init.normal_(self.text_query_condition[3].weight, std=proj_std)
 
     def _set_task(self):
         loss_names = self.args.loss_names
@@ -115,6 +137,20 @@ class IRRA(nn.Module):
 
         x = self.ln_post(x)
         return x
+
+    def build_fta_queries(self, image_cls_feats, text_cls_feats):
+        batch_size = image_cls_feats.shape[0]
+        base_query = self.query.unsqueeze(0).expand(batch_size, -1, -1)
+        if self.fta_query_mode != "conditioned":
+            return base_query, base_query
+
+        visual_delta = self.visual_query_condition(image_cls_feats).reshape(batch_size, self.num_query, self.embed_dim)
+        text_delta = self.text_query_condition(text_cls_feats).reshape(batch_size, self.num_query, self.embed_dim)
+        condition_scale = getattr(self.args, "fta_query_condition_scale", 1.0)
+
+        visual_query = base_query + condition_scale * visual_delta
+        text_query = base_query + condition_scale * text_delta
+        return visual_query, text_query
 
     def encode_image(self, image):
         image_feats = self.base_model.encode_image(image)
@@ -215,12 +251,10 @@ class IRRA(nn.Module):
             })
 
         if 'fta' in self.current_task:
-            B = text_feats.shape[0]
-            query_expand = self.query.unsqueeze(0).expand(B, -1, -1)
-
             with torch.autocast(dtype=torch.float16, device_type='cuda'):
-                Q_v = self.cross_former(query_expand.half(), image_feats, image_feats) 
-                Q_t = self.cross_former(query_expand.half(), text_feats, text_feats)  # 
+                query_v, query_t = self.build_fta_queries(i_feats, t_feats)
+                Q_v = self.cross_former(query_v.half(), image_feats, image_feats) 
+                Q_t = self.cross_former(query_t.half(), text_feats, text_feats)  # 
 
             # v2 cross-modal membership
             with torch.autocast(dtype=torch.float16, device_type='cuda'):

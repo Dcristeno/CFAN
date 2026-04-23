@@ -23,6 +23,9 @@ USE_SWANLAB="${USE_SWANLAB:-0}"
 SWANLAB_PROJECT="${SWANLAB_PROJECT:-CFAN}"
 SWANLAB_EXPERIMENT="${SWANLAB_EXPERIMENT:-cfan_aeri_finetune}"
 SWANLAB_MODE="${SWANLAB_MODE:-cloud}"
+FTA_NUM_QUERY="${FTA_NUM_QUERY:-4}"
+FTA_QUERY_MODE="${FTA_QUERY_MODE:-static}"
+FTA_QUERY_CONDITION_SCALE="${FTA_QUERY_CONDITION_SCALE:-1.0}"
 
 args=(
   --name "${RUN_NAME}"
@@ -43,6 +46,9 @@ args=(
   --bridge_distill_temp "${BRIDGE_DISTILL_TEMP}"
   --aerial_prototype_path "${AERIAL_PROTOTYPE_PATH}"
   --aerial_prototype_weight "${AERIAL_PROTOTYPE_WEIGHT}"
+  --fta_num_query "${FTA_NUM_QUERY}"
+  --fta_query_mode "${FTA_QUERY_MODE}"
+  --fta_query_condition_scale "${FTA_QUERY_CONDITION_SCALE}"
   --lr 5e-6
   --lr2 5e-5
   --num_epoch 60
