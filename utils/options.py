@@ -95,6 +95,8 @@ def get_args():
     parser.add_argument("--train_sample_representative_weight", type=float, default=1.0, help="weight for representative-score in heuristic per-id sampling")
     parser.add_argument("--train_sample_diversity_weight", type=float, default=0.5, help="weight for redundancy penalty in heuristic per-id sampling")
     parser.add_argument("--train_sample_mid_weight", type=float, default=0.5, help="weight for preferring mid-sharpness images in heuristic per-id sampling")
+    parser.add_argument("--train_tile_mix_grid", type=int, default=0, help="if > 1, randomly mosaic same-pid aerial images using an NxN grid during training")
+    parser.add_argument("--train_tile_mix_prob", type=float, default=0.0, help="probability of applying same-pid aerial tile mixing to each training sample")
     parser.add_argument("--test", dest='training', default=True, action='store_false')
 
     args = parser.parse_args()

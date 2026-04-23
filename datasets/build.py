@@ -341,7 +341,9 @@ def build_finetune_train_loader(args, train_dataset, epoch=None):
     )
     train_set = ImageTextMLMDataset(sampled_dataset,
                                     train_transforms,
-                                    text_length=args.text_length)
+                                    text_length=args.text_length,
+                                    tile_mix_grid=args.train_tile_mix_grid,
+                                    tile_mix_prob=args.train_tile_mix_prob)
     return DataLoader(train_set,
                       batch_size=args.batch_size,
                       shuffle=True,

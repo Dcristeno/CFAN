@@ -4,6 +4,8 @@ from torch.utils.data import Dataset
 import os.path as osp
 import logging
 import torch
+from collections import defaultdict
+from PIL import Image
 from utils.iotools import read_image
 from utils.simple_tokenizer import SimpleTokenizer
 from prettytable import PrettyTable
@@ -82,8 +84,8 @@ class ImageTextDataset(Dataset):
         tokens = tokenize(caption, tokenizer=self.tokenizer, text_length=self.text_length, truncate=self.truncate)
 
         ret = {
-            'img_path':img_path,
-            'caption':caption,
+            'img_path': img_path,
+            'caption': caption,
             'pids': pid,
             'image_ids': image_id,
             'images': img,
@@ -132,32 +134,41 @@ class TextDataset(Dataset):
 
         return pid, caption
 
+
 def softmax(x):
-        """Compute softmax values for each sets of scores in x."""
-        e_x = np.exp(x - np.max(x))
-        return e_x / e_x.sum()
+    """Compute softmax values for each sets of scores in x."""
+    e_x = np.exp(x - np.max(x))
+    return e_x / e_x.sum()
+
 
 class ImageTextMLMDataset(Dataset):
     def __init__(self,
                  dataset,
                  transform=None,
                  text_length: int = 77,
-                 truncate: bool = True):
+                 truncate: bool = True,
+                 tile_mix_grid: int = 0,
+                 tile_mix_prob: float = 0.0):
         self.dataset = dataset
         self.transform = transform
         self.text_length = text_length
         self.truncate = truncate
+        self.tile_mix_grid = int(tile_mix_grid)
+        self.tile_mix_prob = float(tile_mix_prob)
 
         self.tokenizer = SimpleTokenizer()
-        
+        self.pid_to_indices = defaultdict(list)
+        for idx, sample in enumerate(self.dataset):
+            self.pid_to_indices[sample[0]].append(idx)
 
     def __len__(self):
         return len(self.dataset)
 
     def __getitem__(self, index):
-        pid, img_path, g_path, caption = self.dataset[index][:5]  #  [:5] 用于 AERI-PEDES数据集
-        # pid, img_path, g_path, caption = self.dataset[index][:5]  #  [:5]   专门用于 TBAPR数据集
+        pid, img_path, g_path, caption = self.dataset[index][:5]
         img = read_image(img_path)
+        if self.tile_mix_grid > 1 and random.random() < self.tile_mix_prob:
+            img = self._build_same_pid_tile_mix(index, pid, img)
         g = read_image(g_path)
         if self.transform is not None:
             img = self.transform(img)
@@ -175,26 +186,38 @@ class ImageTextMLMDataset(Dataset):
 
         return ret
 
-    # def __getitem__(self, index):
-    #     pid, image_id, img_path, caption = self.dataset[index]
-    #     img = read_image(img_path)
-    #     if self.transform is not None:
-    #         img = self.transform(img)
-        
-    #     caption_tokens = tokenize(caption, tokenizer=self.tokenizer, text_length=self.text_length, truncate=self.truncate)
+    def _build_same_pid_tile_mix(self, index, pid, base_img):
+        candidate_indices = self.pid_to_indices.get(pid, [])
+        if not candidate_indices:
+            return base_img
 
-    #     mlm_tokens, mlm_labels = self._build_random_masked_tokens_and_labels(caption_tokens.cpu().numpy())
+        partner_index = random.choice(candidate_indices)
+        if len(candidate_indices) > 1:
+            while partner_index == index:
+                partner_index = random.choice(candidate_indices)
 
-    #     ret = {
-    #         'pids': pid,
-    #         'image_ids': image_id,
-    #         'images': img,
-    #         'caption_ids': caption_tokens,
-    #         'mlm_ids': mlm_tokens,
-    #         'mlm_labels': mlm_labels
-    #     }
+        partner_img_path = self.dataset[partner_index][1]
+        partner_img = read_image(partner_img_path)
+        if partner_img.size != base_img.size:
+            partner_img = partner_img.resize(base_img.size, Image.BILINEAR)
 
-    #     return ret
+        width, height = base_img.size
+        grid = self.tile_mix_grid
+        mixed = Image.new('RGB', (width, height))
+        x_points = [round(i * width / grid) for i in range(grid + 1)]
+        y_points = [round(i * height / grid) for i in range(grid + 1)]
+
+        for gy in range(grid):
+            top = y_points[gy]
+            bottom = y_points[gy + 1]
+            for gx in range(grid):
+                left = x_points[gx]
+                right = x_points[gx + 1]
+                box = (left, top, right, bottom)
+                source_img = base_img if random.random() < 0.5 else partner_img
+                mixed.paste(source_img.crop(box), box)
+
+        return mixed
 
     def _build_random_masked_tokens_and_labels(self, tokens):
         """
@@ -203,8 +226,8 @@ class ImageTextMLMDataset(Dataset):
         :return: (list of int, list of int), masked tokens and related labels for MLM prediction
         """
         mask = self.tokenizer.encoder["<|mask|>"]
-        token_range = list(range(1, len(self.tokenizer.encoder)-3)) # 1 ~ 49405
-        
+        token_range = list(range(1, len(self.tokenizer.encoder)-3))  # 1 ~ 49405
+
         labels = []
         for i, token in enumerate(tokens):
             if 0 < token < 49405:
@@ -221,8 +244,6 @@ class ImageTextMLMDataset(Dataset):
                     elif prob < 0.9:
                         tokens[i] = random.choice(token_range)
 
-                    # -> rest 10% randomly keep current token
-
                     # append current token to output (we will predict these later)
                     labels.append(token)
                 else:
@@ -230,14 +251,15 @@ class ImageTextMLMDataset(Dataset):
                     labels.append(0)
             else:
                 labels.append(0)
-        
+
         if all(l == 0 for l in labels):
             # at least mask 1
             labels[1] = tokens[1]
             tokens[1] = mask
 
         return torch.tensor(tokens), torch.tensor(labels)
-    
+
+
 class FilterDataset(Dataset):
     def __init__(self,
                  dataset,
@@ -250,7 +272,6 @@ class FilterDataset(Dataset):
         self.truncate = truncate
 
         self.tokenizer = SimpleTokenizer()
-        
 
     def __len__(self):
         return len(self.dataset)
@@ -260,10 +281,10 @@ class FilterDataset(Dataset):
         img = read_image(img_path)
         if self.transform is not None:
             img = self.transform(img)
-            
+
         caption_tokens = tokenize(caption, tokenizer=self.tokenizer, text_length=self.text_length, truncate=self.truncate)
         mlm_tokens, mlm_labels = self._build_random_masked_tokens_and_labels(caption_tokens.cpu().numpy(), sim)
-        ori_tokens =  tokenize(caption, tokenizer=self.tokenizer, text_length=self.text_length, truncate=self.truncate)
+        ori_tokens = tokenize(caption, tokenizer=self.tokenizer, text_length=self.text_length, truncate=self.truncate)
 
         ret = {
             'pids': pid,
@@ -272,9 +293,9 @@ class FilterDataset(Dataset):
             'caption_ids': caption_tokens,
             'mlm_ids': mlm_tokens,
             'mlm_labels': mlm_labels,
-            'caption_ids_ori':ori_tokens
+            'caption_ids_ori': ori_tokens
         }
-        
+
         return ret
 
     def _build_random_masked_tokens_and_labels(self, tokens, sim):
@@ -284,10 +305,10 @@ class FilterDataset(Dataset):
         :return: (list of int, list of int), masked tokens and related labels for MLM prediction
         """
         mask = self.tokenizer.encoder["<|mask|>"]
-        token_range = list(range(1, len(self.tokenizer.encoder)-3)) # 1 ~ 49405
-        
+        token_range = list(range(1, len(self.tokenizer.encoder)-3))  # 1 ~ 49405
+
         labels = []
-        
+
         if tokens[-1] == 0:
             valid_token_num = np.where(tokens == 0)[0][0]
         else:
@@ -302,7 +323,7 @@ class FilterDataset(Dataset):
             normalized_prob = normed_prob + 0.15
             normalized_prob = np.clip(normalized_prob, 0, 1)
             ori_pro[1:valid_token_num-1] = normalized_prob
-        
+
         for i, token in enumerate(tokens):
             if 0 < token < 49405:
                 prob = random.random()
@@ -318,8 +339,6 @@ class FilterDataset(Dataset):
                     elif prob < 0.9:
                         tokens[i] = random.choice(token_range)
 
-                    # -> rest 10% randomly keep current token
-
                     # append current token to output (we will predict these later)
                     labels.append(token)
                 else:
@@ -327,7 +346,7 @@ class FilterDataset(Dataset):
                     labels.append(0)
             else:
                 labels.append(0)
-        
+
         if all(l == 0 for l in labels):
             # at least mask 1
             labels[1] = tokens[1]

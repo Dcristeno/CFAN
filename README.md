@@ -109,6 +109,15 @@ CUDA_VISIBLE_DEVICES=0 \
 bash finetune.sh
 ```
 
+To aggressively mosaic aerial images by randomly mixing `8x8` tiles from two images of the same pid on every training sample, add:
+
+```bash
+TRAIN_TILE_MIX_GRID=8 \
+TRAIN_TILE_MIX_PROB=1.0 \
+```
+
+This keeps the original pid label, but rebuilds the aerial image by randomly stitching together local regions from the two same-pid aerial samples that exist in the current epoch-sampled train set.
+
 To enable the stronger ground-to-aerial bridge loss for AERI experiments, run:
 
 ```bash
