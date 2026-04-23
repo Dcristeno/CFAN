@@ -218,14 +218,12 @@ def compute_selective_align_loss(aerial_fetures, ground_features, text_fetures, 
 
     return loss
 
-def compute_ground_to_aerial_bridge_loss(
+def compute_ground_to_aerial_bridge_terms(
     aerial_fetures,
     ground_features,
     text_fetures,
     pid,
     logit_scale,
-    pair_weight=1.0,
-    distill_weight=1.0,
     distill_temp=0.07,
 ):
     """
@@ -256,7 +254,31 @@ def compute_ground_to_aerial_bridge_loss(
 
     relation_distill_loss = 0.5 * (row_distill_loss + col_distill_loss)
 
-    return pair_weight * pair_loss + distill_weight * relation_distill_loss
+    return {
+        "pair_loss": pair_loss,
+        "distill_loss": relation_distill_loss,
+    }
+
+
+def compute_ground_to_aerial_bridge_loss(
+    aerial_fetures,
+    ground_features,
+    text_fetures,
+    pid,
+    logit_scale,
+    pair_weight=1.0,
+    distill_weight=1.0,
+    distill_temp=0.07,
+):
+    bridge_terms = compute_ground_to_aerial_bridge_terms(
+        aerial_fetures,
+        ground_features,
+        text_fetures,
+        pid,
+        logit_scale,
+        distill_temp=distill_temp,
+    )
+    return pair_weight * bridge_terms["pair_loss"] + distill_weight * bridge_terms["distill_loss"]
 
 def compute_fa_loss(S_t2v, S_v2t, pid, logit_scale,epsilon=1e-8):
     batch_size = S_t2v.shape[0]

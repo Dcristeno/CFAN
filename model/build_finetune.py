@@ -148,17 +148,19 @@ class IRRA(nn.Module):
         if 'bridge' in self.current_task:
             if g_i_feats is None:
                 raise ValueError("bridge loss requires ground image features, but the current batch does not provide them.")
-            bridge_loss = objectives.compute_ground_to_aerial_bridge_loss(
+            bridge_terms = objectives.compute_ground_to_aerial_bridge_terms(
                 i_feats,
                 g_i_feats,
                 t_feats,
                 batch['pids'],
                 logit_scale,
-                pair_weight=self.args.bridge_pair_weight,
-                distill_weight=self.args.bridge_distill_weight,
                 distill_temp=self.args.bridge_distill_temp,
             )
-            ret.update({'bridge_loss': bridge_loss * self.args.bridge_loss_weight})
+            weighted_pair_loss = bridge_terms["pair_loss"] * self.args.bridge_pair_weight * self.args.bridge_loss_weight
+            weighted_distill_loss = bridge_terms["distill_loss"] * self.args.bridge_distill_weight * self.args.bridge_loss_weight
+            ret.update({'bridge_pair_loss': weighted_pair_loss})
+            ret.update({'bridge_distill_loss': weighted_distill_loss})
+            ret.update({'bridge_loss': weighted_pair_loss + weighted_distill_loss})
 
         if 'fta' in self.current_task:
             B = text_feats.shape[0]

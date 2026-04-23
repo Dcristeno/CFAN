@@ -116,6 +116,36 @@ bash finetune.sh
 
 The strong bridge loss first pulls each aerial feature toward its detached ground-view teacher, then distills the full ground-text relation matrix into the aerial-text relation matrix.
 
+To run the `pair only` ablation, set:
+
+```bash
+USE_SWANLAB=1 \
+RUN_NAME='aeri_cda_bridge_pair_only_k2' \
+SWANLAB_EXPERIMENT='aeri_cda_bridge_pair_only_k2' \
+LOSS_NAMES='cda+bridge' \
+TRAIN_SAMPLES_PER_ID=2 \
+BRIDGE_LOSS_WEIGHT=2.0 \
+BRIDGE_PAIR_WEIGHT=1.0 \
+BRIDGE_DISTILL_WEIGHT=0.0 \
+BRIDGE_DISTILL_TEMP=0.07 \
+bash finetune.sh
+```
+
+To run the `distill only` ablation, set:
+
+```bash
+USE_SWANLAB=1 \
+RUN_NAME='aeri_cda_bridge_distill_only_k2' \
+SWANLAB_EXPERIMENT='aeri_cda_bridge_distill_only_k2' \
+LOSS_NAMES='cda+bridge' \
+TRAIN_SAMPLES_PER_ID=2 \
+BRIDGE_LOSS_WEIGHT=2.0 \
+BRIDGE_PAIR_WEIGHT=0.0 \
+BRIDGE_DISTILL_WEIGHT=1.0 \
+BRIDGE_DISTILL_TEMP=0.07 \
+bash finetune.sh
+```
+
 ## Notes on the provided weights
 
 The provided checkpoint contains finetune-only modules such as `query` and `mlp_logsigma2`, so evaluation should use `build_finetune_model`. The cleaned `test.py` now auto-detects this from the checkpoint.
