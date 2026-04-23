@@ -146,6 +146,30 @@ BRIDGE_DISTILL_TEMP=0.07 \
 bash finetune.sh
 ```
 
+To build fixed aerial trajectory prototypes from the initialization checkpoint, run:
+
+```bash
+python build_aerial_prototypes.py \
+  --root_dir /home/wuyong/datasets \
+  --finetune /home/wuyong/data/HAM/HAM_checkpoint/random100w_2HAMcaptions/best0.pth \
+  --output /home/wuyong/data/HAM/HAM_checkpoint/aeri_train_aerial_prototypes.pth
+```
+
+Then train with the prototype teacher while keeping `random k=2` unchanged:
+
+```bash
+DATA_ROOT=/home/wuyong/datasets \
+FINETUNE_INIT=/home/wuyong/data/HAM/HAM_checkpoint/random100w_2HAMcaptions/best0.pth \
+LOSS_NAMES='cda+proto' \
+TRAIN_SAMPLES_PER_ID=2 \
+AERIAL_PROTOTYPE_PATH=/home/wuyong/data/HAM/HAM_checkpoint/aeri_train_aerial_prototypes.pth \
+AERIAL_PROTOTYPE_WEIGHT=0.3 \
+CUDA_VISIBLE_DEVICES=0 \
+bash finetune.sh
+```
+
+This keeps the random sparse sampler, but gives each sampled aerial image an extra pull toward the fixed trajectory summary of its identity.
+
 ## Notes on the provided weights
 
 The provided checkpoint contains finetune-only modules such as `query` and `mlp_logsigma2`, so evaluation should use `build_finetune_model`. The cleaned `test.py` now auto-detects this from the checkpoint.

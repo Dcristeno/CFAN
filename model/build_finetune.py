@@ -17,6 +17,8 @@ class IRRA(nn.Module):
         self.base_model, base_cfg = build_CLIP_from_openai_pretrained(args.pretrain_choice, args.img_size, args.stride_size)
         self.embed_dim = base_cfg['embed_dim']
         self.logit_scale = torch.ones([]) * (1 / args.temperature) 
+        if 'proto' in self.current_task:
+            self._load_aerial_prototypes()
 
         if 'fta' in args.loss_names:  
             self.num_query = 4
@@ -67,6 +69,38 @@ class IRRA(nn.Module):
         loss_names = self.args.loss_names
         self.current_task = [l.strip() for l in loss_names.split('+')]
         print(f'Training Model with {self.current_task} tasks')
+
+    def _register_optional_buffer(self, name, tensor):
+        try:
+            self.register_buffer(name, tensor, persistent=False)
+        except TypeError:
+            self.register_buffer(name, tensor)
+
+    def _load_aerial_prototypes(self):
+        prototype_path = getattr(self.args, "aerial_prototype_path", "")
+        if not prototype_path:
+            raise ValueError("proto loss requires --aerial_prototype_path to point to a saved prototype file.")
+
+        proto_data = torch.load(prototype_path, map_location="cpu")
+        if not isinstance(proto_data, dict) or "prototypes" not in proto_data:
+            raise ValueError(f"Invalid aerial prototype file: {prototype_path}")
+
+        prototypes = proto_data["prototypes"].float()
+        if prototypes.ndim != 2:
+            raise ValueError(f"Aerial prototypes must be a 2D tensor, but got shape {tuple(prototypes.shape)}")
+        if prototypes.shape[1] != self.embed_dim:
+            raise ValueError(
+                f"Aerial prototype dim mismatch: expected {self.embed_dim}, got {prototypes.shape[1]}"
+            )
+
+        valid_mask = proto_data.get("valid_mask")
+        if valid_mask is None:
+            valid_mask = torch.ones(prototypes.shape[0], dtype=torch.bool)
+        else:
+            valid_mask = valid_mask.bool()
+
+        self._register_optional_buffer("aerial_prototypes", prototypes)
+        self._register_optional_buffer("aerial_prototype_valid_mask", valid_mask)
     
     
     def cross_former(self, q, k, v):
@@ -161,6 +195,24 @@ class IRRA(nn.Module):
             ret.update({'bridge_pair_loss': weighted_pair_loss})
             ret.update({'bridge_distill_loss': weighted_distill_loss})
             ret.update({'bridge_loss': weighted_pair_loss + weighted_distill_loss})
+
+        if 'proto' in self.current_task:
+            if not hasattr(self, "aerial_prototypes") or self.aerial_prototypes is None:
+                raise ValueError("proto loss requires preloaded aerial prototypes, but none were found.")
+            pid_indices = batch['pids'].long()
+            if pid_indices.max().item() >= self.aerial_prototypes.shape[0]:
+                raise ValueError("Encountered pid outside the range covered by the aerial prototype file.")
+            valid_mask = self.aerial_prototype_valid_mask[pid_indices]
+            if not valid_mask.all().item():
+                missing_pids = torch.unique(pid_indices[~valid_mask]).tolist()
+                raise ValueError(f"Missing aerial prototypes for pids: {missing_pids}")
+            prototype_feats = self.aerial_prototypes[pid_indices].float()
+            ret.update({
+                'prototype_loss': objectives.compute_aerial_prototype_alignment_loss(
+                    i_feats,
+                    prototype_feats,
+                ) * self.args.aerial_prototype_weight
+            })
 
         if 'fta' in self.current_task:
             B = text_feats.shape[0]

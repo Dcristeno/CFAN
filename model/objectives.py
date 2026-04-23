@@ -280,6 +280,12 @@ def compute_ground_to_aerial_bridge_loss(
     )
     return pair_weight * bridge_terms["pair_loss"] + distill_weight * bridge_terms["distill_loss"]
 
+
+def compute_aerial_prototype_alignment_loss(aerial_features, prototype_features):
+    aerial_norm = F.normalize(aerial_features, dim=-1)
+    prototype_norm = F.normalize(prototype_features, dim=-1)
+    return (1.0 - torch.sum(aerial_norm * prototype_norm, dim=-1)).mean()
+
 def compute_fa_loss(S_t2v, S_v2t, pid, logit_scale,epsilon=1e-8):
     batch_size = S_t2v.shape[0]
     pid = pid.reshape((batch_size, 1))

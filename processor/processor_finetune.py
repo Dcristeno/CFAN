@@ -36,6 +36,7 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
         "bridge_loss": AverageMeter(),
         "bridge_pair_loss": AverageMeter(),
         "bridge_distill_loss": AverageMeter(),
+        "prototype_loss": AverageMeter(),
         "fta_loss": AverageMeter(),
         "entropy_loss": AverageMeter(),
         "fa_triplet_loss": AverageMeter(),
@@ -78,6 +79,7 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
             meters['bridge_loss'].update(ret.get('bridge_loss', 0), batch_size)
             meters['bridge_pair_loss'].update(ret.get('bridge_pair_loss', 0), batch_size)
             meters['bridge_distill_loss'].update(ret.get('bridge_distill_loss', 0), batch_size)
+            meters['prototype_loss'].update(ret.get('prototype_loss', 0), batch_size)
             meters['fta_loss'].update(ret.get('fta_loss', 0), batch_size)
 
             optimizer.zero_grad()
