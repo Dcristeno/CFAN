@@ -37,6 +37,9 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
         "bridge_pair_loss": AverageMeter(),
         "bridge_distill_loss": AverageMeter(),
         "prototype_loss": AverageMeter(),
+        "track_loss": AverageMeter(),
+        "track_image_loss": AverageMeter(),
+        "track_text_loss": AverageMeter(),
         "fta_loss": AverageMeter(),
         "entropy_loss": AverageMeter(),
         "fa_triplet_loss": AverageMeter(),
@@ -69,7 +72,8 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
             batch = {k: v.cuda() for k, v in batch.items()}
            
             ret = model(batch)
-            ret = {key: values.mean() for key, values in ret.items()}
+            aux_ret = {key: values for key, values in ret.items() if key.startswith('_')}
+            ret = {key: values.mean() for key, values in ret.items() if not key.startswith('_')}
             total_loss = sum([v for k, v in ret.items() if "loss" in k])
 
             batch_size = batch['images'].shape[0]
@@ -80,11 +84,20 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
             meters['bridge_pair_loss'].update(ret.get('bridge_pair_loss', 0), batch_size)
             meters['bridge_distill_loss'].update(ret.get('bridge_distill_loss', 0), batch_size)
             meters['prototype_loss'].update(ret.get('prototype_loss', 0), batch_size)
+            meters['track_loss'].update(ret.get('track_loss', 0), batch_size)
+            meters['track_image_loss'].update(ret.get('track_image_loss', 0), batch_size)
+            meters['track_text_loss'].update(ret.get('track_text_loss', 0), batch_size)
             meters['fta_loss'].update(ret.get('fta_loss', 0), batch_size)
 
             optimizer.zero_grad()
             total_loss.backward()
             optimizer.step()
+            if '_track_memory_pids' in aux_ret and '_track_memory_image_feats' in aux_ret:
+                track_model = model.module if hasattr(model, "module") else model
+                track_model.update_track_memory(
+                    aux_ret['_track_memory_pids'],
+                    aux_ret['_track_memory_image_feats'],
+                )
             synchronize()
 
             if (n_iter + 1) % log_period == 0:

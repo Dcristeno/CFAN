@@ -286,6 +286,12 @@ def compute_aerial_prototype_alignment_loss(aerial_features, prototype_features)
     prototype_norm = F.normalize(prototype_features, dim=-1)
     return (1.0 - torch.sum(aerial_norm * prototype_norm, dim=-1)).mean()
 
+
+def compute_feature_alignment_loss(source_features, target_features):
+    source_norm = F.normalize(source_features, dim=-1)
+    target_norm = F.normalize(target_features, dim=-1)
+    return (1.0 - torch.sum(source_norm * target_norm, dim=-1)).mean()
+
 def compute_fa_loss(S_t2v, S_v2t, pid, logit_scale,epsilon=1e-8):
     batch_size = S_t2v.shape[0]
     pid = pid.reshape((batch_size, 1))

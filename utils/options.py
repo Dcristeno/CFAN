@@ -46,6 +46,10 @@ def get_args():
     parser.add_argument("--bridge_distill_temp", type=float, default=0.07, help="temperature for the relation distillation bridge term")
     parser.add_argument("--aerial_prototype_path", type=str, default="", help="path to a fixed pid-indexed aerial prototype tensor file")
     parser.add_argument("--aerial_prototype_weight", type=float, default=0.0, help="weight for the fixed aerial trajectory prototype pull loss")
+    parser.add_argument("--track_memory_loss_weight", type=float, default=0.0, help="overall weight for the online track-memory alignment loss")
+    parser.add_argument("--track_memory_image_weight", type=float, default=1.0, help="weight for aligning sampled aerial features to their online track memory")
+    parser.add_argument("--track_memory_text_weight", type=float, default=1.0, help="weight for aligning text features to their online track memory")
+    parser.add_argument("--track_memory_momentum", type=float, default=0.8, help="EMA momentum used to update each pid track memory")
     
     ######################## vison trainsformer settings ########################
     parser.add_argument("--img_size", type=tuple, default=(384, 128))

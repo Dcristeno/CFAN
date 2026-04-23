@@ -180,6 +180,26 @@ bash finetune.sh
 
 This keeps the random sparse sampler, but gives each sampled aerial image an extra pull toward the fixed trajectory summary of its identity.
 
+To try an online track-memory teacher instead of a fixed prototype, add a `track` loss and let each pid maintain an EMA-updated aerial memory during training:
+
+```bash
+DATA_ROOT=/home/wuyong/datasets \
+FINETUNE_INIT=/home/wuyong/data/HAM/HAM_checkpoint/random100w_2HAMcaptions/best0.pth \
+LOSS_NAMES='cda+fta+bridge+track' \
+TRAIN_SAMPLES_PER_ID=2 \
+BRIDGE_LOSS_WEIGHT=2.0 \
+BRIDGE_PAIR_WEIGHT=1.0 \
+BRIDGE_DISTILL_WEIGHT=0.0 \
+TRACK_MEMORY_LOSS_WEIGHT=0.1 \
+TRACK_MEMORY_IMAGE_WEIGHT=1.0 \
+TRACK_MEMORY_TEXT_WEIGHT=1.0 \
+TRACK_MEMORY_MOMENTUM=0.8 \
+CUDA_VISIBLE_DEVICES=0 \
+bash finetune.sh
+```
+
+This keeps `random k=2`, but adds trajectory-level supervision by aligning both the sampled aerial feature and its text feature to an online EMA memory for the current identity.
+
 ## Notes on the provided weights
 
 The provided checkpoint contains finetune-only modules such as `query` and `mlp_logsigma2`, so evaluation should use `build_finetune_model`. The cleaned `test.py` now auto-detects this from the checkpoint.

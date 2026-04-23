@@ -19,6 +19,8 @@ class IRRA(nn.Module):
         self.logit_scale = torch.ones([]) * (1 / args.temperature) 
         if 'proto' in self.current_task:
             self._load_aerial_prototypes()
+        if 'track' in self.current_task:
+            self._init_track_memory()
 
         if 'fta' in args.loss_names:  
             self.fta_query_mode = getattr(args, "fta_query_mode", "static").lower()
@@ -123,6 +125,58 @@ class IRRA(nn.Module):
 
         self._register_optional_buffer("aerial_prototypes", prototypes)
         self._register_optional_buffer("aerial_prototype_valid_mask", valid_mask)
+
+    def _init_track_memory(self):
+        num_pids = int(getattr(self.args, "track_memory_num_pids", 0))
+        if num_pids <= 0:
+            raise ValueError("track loss requires a positive --track_memory_num_pids value.")
+        self._register_optional_buffer("track_memory", torch.zeros(num_pids, self.embed_dim, dtype=torch.float32))
+        self._register_optional_buffer("track_memory_valid", torch.zeros(num_pids, dtype=torch.bool))
+
+    def compute_track_memory_losses(self, image_cls_feats, text_cls_feats, pid_indices):
+        if not hasattr(self, "track_memory") or self.track_memory is None:
+            raise ValueError("track loss requires initialized track memory buffers.")
+
+        if pid_indices.max().item() >= self.track_memory.shape[0]:
+            raise ValueError("Encountered pid outside the range covered by the track memory.")
+
+        valid_mask = self.track_memory_valid[pid_indices]
+        zero = image_cls_feats.sum() * 0.0
+        if not valid_mask.any().item():
+            return zero, zero
+
+        target_memory = self.track_memory[pid_indices[valid_mask]].float()
+        image_loss = objectives.compute_feature_alignment_loss(
+            image_cls_feats[valid_mask],
+            target_memory,
+        )
+        text_loss = objectives.compute_feature_alignment_loss(
+            text_cls_feats[valid_mask],
+            target_memory,
+        )
+        return image_loss, text_loss
+
+    @torch.no_grad()
+    def update_track_memory(self, pid_indices, image_cls_feats):
+        if not hasattr(self, "track_memory") or self.track_memory is None:
+            return
+
+        pid_indices = pid_indices.detach().long().reshape(-1)
+        image_cls_feats = F.normalize(image_cls_feats.detach().float(), dim=-1)
+        momentum = float(getattr(self.args, "track_memory_momentum", 0.8))
+
+        unique_pids = torch.unique(pid_indices)
+        for pid in unique_pids.tolist():
+            batch_mask = pid_indices == pid
+            batch_memory = image_cls_feats[batch_mask].mean(dim=0)
+            batch_memory = F.normalize(batch_memory.unsqueeze(0), dim=-1).squeeze(0)
+
+            if self.track_memory_valid[pid]:
+                updated_memory = momentum * self.track_memory[pid] + (1.0 - momentum) * batch_memory
+                self.track_memory[pid] = F.normalize(updated_memory.unsqueeze(0), dim=-1).squeeze(0)
+            else:
+                self.track_memory[pid] = batch_memory
+                self.track_memory_valid[pid] = True
     
     
     def cross_former(self, q, k, v):
@@ -249,6 +303,17 @@ class IRRA(nn.Module):
                     prototype_feats,
                 ) * self.args.aerial_prototype_weight
             })
+
+        if 'track' in self.current_task:
+            pid_indices = batch['pids'].long()
+            track_image_loss, track_text_loss = self.compute_track_memory_losses(i_feats, t_feats, pid_indices)
+            weighted_track_image_loss = track_image_loss * self.args.track_memory_image_weight * self.args.track_memory_loss_weight
+            weighted_track_text_loss = track_text_loss * self.args.track_memory_text_weight * self.args.track_memory_loss_weight
+            ret.update({'track_image_loss': weighted_track_image_loss})
+            ret.update({'track_text_loss': weighted_track_text_loss})
+            ret.update({'track_loss': weighted_track_image_loss + weighted_track_text_loss})
+            ret.update({'_track_memory_pids': pid_indices.detach()})
+            ret.update({'_track_memory_image_feats': i_feats.detach()})
 
         if 'fta' in self.current_task:
             with torch.autocast(dtype=torch.float16, device_type='cuda'):
