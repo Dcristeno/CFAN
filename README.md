@@ -58,6 +58,8 @@ CUDA_VISIBLE_DEVICES=0 \
 bash finetune.sh
 ```
 
+To rerun the same configuration under a different random seed, add `SEED=<n>`, for example `SEED=2`.
+
 To switch FTA from the original static learned queries to instance-conditioned queries, add:
 
 ```bash

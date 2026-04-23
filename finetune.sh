@@ -6,6 +6,7 @@ DATA_ROOT="${DATA_ROOT:-/home/wuyong/datasets}"
 CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
 FINETUNE_INIT="${FINETUNE_INIT:-/home/wuyong/data/HAM/HAM_checkpoint/random100w_2HAMcaptions/best0.pth}"
 RUN_NAME="${RUN_NAME:-cfan_finetune}"
+SEED="${SEED:-1}"
 LOSS_NAMES="${LOSS_NAMES:-cda+fta}"
 TRAIN_SAMPLES_PER_ID="${TRAIN_SAMPLES_PER_ID:-0}"
 TRAIN_SAMPLE_STRATEGY="${TRAIN_SAMPLE_STRATEGY:-random}"
@@ -35,6 +36,7 @@ FTA_QUERY_CONDITION_SCALE="${FTA_QUERY_CONDITION_SCALE:-1.0}"
 
 args=(
   --name "${RUN_NAME}"
+  --seed "${SEED}"
   --img_aug
   --batch_size 64
   --MLM
