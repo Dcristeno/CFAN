@@ -60,16 +60,25 @@ bash finetune.sh
 
 To rerun the same configuration under a different random seed, add `SEED=<n>`, for example `SEED=2`.
 
-Finetune now defaults to training on the full train split without intermediate validation. It saves `final.pth`, and you should run `test.py` once after training for the official test score.
-
-If you want to re-enable held-out finetune validation for ablations, set `SKIP_FINETUNE_EVAL=0` and control the split with:
+Finetune now defaults back to per-epoch evaluation on the official test split:
 
 ```bash
+FINETUNE_EVAL_MODE=test
+```
+
+If you want a different behavior, switch modes:
+
+```bash
+FINETUNE_EVAL_MODE=heldout
 FINETUNE_VAL_RATIO=0.1
 FINETUNE_VAL_SEED=1
 ```
 
-Use `test.py` for the final one-shot evaluation on the official test set after training is done.
+```bash
+FINETUNE_EVAL_MODE=none
+```
+
+`heldout` uses a train-identity split for model selection, and `none` trains on the full train split and saves `final.pth` without intermediate validation.
 
 To switch FTA from the original static learned queries to instance-conditioned queries, add:
 

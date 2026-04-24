@@ -473,37 +473,48 @@ def build_zero_shot_loader(args, finetune=False):
     else:
         syn_dataset = __factory[args.pretrain](root=args.root_dir)
 
-    if finetune and not getattr(args, "skip_finetune_eval", False):
-        train_dataset, val_dataset = split_finetune_train_and_val(
-            syn_dataset.train,
-            getattr(args, "finetune_val_ratio", 0.1),
-            getattr(args, "finetune_val_seed", 1),
-        )
-        val_img_set = ImageDataset(val_dataset['image_pids'], val_dataset['img_paths'],
-                                    val_transforms)
-        val_txt_set = TextDataset(val_dataset['caption_pids'],
-                                    val_dataset['captions'],
-                                    text_length=args.text_length)
-        train_set = ImageTextMLMDataset(train_dataset,
-                                train_transforms,
-                                text_length=args.text_length)
-        num_classes = max((sample[0] for sample in train_dataset), default=-1) + 1
-
-        logger.info(
-            f'using held-out finetune validation split: train_samples={len(train_dataset)}, '
-            f'val_images={len(val_dataset["img_paths"])}, val_texts={len(val_dataset["captions"])}, '
-            f'val_ratio={getattr(args, "finetune_val_ratio", 0.1)}, val_seed={getattr(args, "finetune_val_seed", 1)}'
-        )
-    elif finetune:
+    if finetune:
+        eval_mode = getattr(args, "finetune_eval_mode", "test").lower()
         train_dataset = syn_dataset.train
         train_set = ImageTextMLMDataset(train_dataset,
                                 train_transforms,
                                 text_length=args.text_length)
-        val_img_loader = None
-        val_txt_loader = None
         num_classes = len(syn_dataset.train)
 
-        logger.info('skipping intermediate finetune validation and training on the full train split')
+        if eval_mode == "heldout":
+            train_dataset, val_dataset = split_finetune_train_and_val(
+                syn_dataset.train,
+                getattr(args, "finetune_val_ratio", 0.1),
+                getattr(args, "finetune_val_seed", 1),
+            )
+            val_img_set = ImageDataset(val_dataset['image_pids'], val_dataset['img_paths'],
+                                        val_transforms)
+            val_txt_set = TextDataset(val_dataset['caption_pids'],
+                                        val_dataset['captions'],
+                                        text_length=args.text_length)
+            train_set = ImageTextMLMDataset(train_dataset,
+                                    train_transforms,
+                                    text_length=args.text_length)
+            num_classes = max((sample[0] for sample in train_dataset), default=-1) + 1
+            logger.info(
+                f'using held-out finetune validation split: train_samples={len(train_dataset)}, '
+                f'val_images={len(val_dataset["img_paths"])}, val_texts={len(val_dataset["captions"])}, '
+                f'val_ratio={getattr(args, "finetune_val_ratio", 0.1)}, val_seed={getattr(args, "finetune_val_seed", 1)}'
+            )
+        elif eval_mode == "none":
+            val_img_loader = None
+            val_txt_loader = None
+            logger.info('skipping intermediate finetune validation and training on the full train split')
+        elif eval_mode == "test":
+            ds = syn_dataset.test
+            val_img_set = ImageDataset(ds['image_pids'], ds['img_paths'],
+                                        val_transforms)
+            val_txt_set = TextDataset(ds['caption_pids'],
+                                        ds['captions'],
+                                        text_length=args.text_length)
+            logger.info('using official test split for per-epoch finetune evaluation')
+        else:
+            raise ValueError(f"Unsupported finetune_eval_mode: {eval_mode}")
     else:
         ds = syn_dataset.test
         val_img_set = ImageDataset(ds['image_pids'], ds['img_paths'],
@@ -517,7 +528,7 @@ def build_zero_shot_loader(args, finetune=False):
         train_dataset = syn_dataset.train
         num_classes = len(syn_dataset.train)
 
-    if not (finetune and getattr(args, "skip_finetune_eval", False)):
+    if not (finetune and getattr(args, "finetune_eval_mode", "test").lower() == "none"):
         val_img_loader = DataLoader(val_img_set,
                                     batch_size=args.batch_size,
                                     shuffle=False,
