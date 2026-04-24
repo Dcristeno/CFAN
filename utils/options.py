@@ -13,6 +13,7 @@ def get_args():
     parser.add_argument("--val_dataset", default="test") # use val set when evaluate, if test use test set
     parser.add_argument("--resume", default=False, action='store_true')
     parser.add_argument("--resume_ckpt_file", default="", help='resume from ...')
+    parser.add_argument("--skip_finetune_eval", default=False, action='store_true', help="skip intermediate finetune validation and train on the full training split")
     parser.add_argument("--use_swanlab", default=False, action='store_true', help="whether to log metrics to SwanLab")
     parser.add_argument("--swanlab_project", default="CFAN", help="SwanLab project name")
     parser.add_argument("--swanlab_experiment", default="", help="Optional SwanLab experiment name")

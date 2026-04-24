@@ -473,7 +473,7 @@ def build_zero_shot_loader(args, finetune=False):
     else:
         syn_dataset = __factory[args.pretrain](root=args.root_dir)
 
-    if finetune:
+    if finetune and not getattr(args, "skip_finetune_eval", False):
         train_dataset, val_dataset = split_finetune_train_and_val(
             syn_dataset.train,
             getattr(args, "finetune_val_ratio", 0.1),
@@ -494,6 +494,16 @@ def build_zero_shot_loader(args, finetune=False):
             f'val_images={len(val_dataset["img_paths"])}, val_texts={len(val_dataset["captions"])}, '
             f'val_ratio={getattr(args, "finetune_val_ratio", 0.1)}, val_seed={getattr(args, "finetune_val_seed", 1)}'
         )
+    elif finetune:
+        train_dataset = syn_dataset.train
+        train_set = ImageTextMLMDataset(train_dataset,
+                                train_transforms,
+                                text_length=args.text_length)
+        val_img_loader = None
+        val_txt_loader = None
+        num_classes = len(syn_dataset.train)
+
+        logger.info('skipping intermediate finetune validation and training on the full train split')
     else:
         ds = syn_dataset.test
         val_img_set = ImageDataset(ds['image_pids'], ds['img_paths'],
@@ -507,14 +517,15 @@ def build_zero_shot_loader(args, finetune=False):
         train_dataset = syn_dataset.train
         num_classes = len(syn_dataset.train)
 
-    val_img_loader = DataLoader(val_img_set,
-                                batch_size=args.batch_size,
-                                shuffle=False,
-                                num_workers=num_workers)
-    val_txt_loader = DataLoader(val_txt_set,
-                                batch_size=args.batch_size,
-                                shuffle=False,
-                                num_workers=num_workers)
+    if not (finetune and getattr(args, "skip_finetune_eval", False)):
+        val_img_loader = DataLoader(val_img_set,
+                                    batch_size=args.batch_size,
+                                    shuffle=False,
+                                    num_workers=num_workers)
+        val_txt_loader = DataLoader(val_txt_set,
+                                    batch_size=args.batch_size,
+                                    shuffle=False,
+                                    num_workers=num_workers)
 
     logger.info('using random sampler')
     if getattr(args, "train_samples_per_id", 0) > 0:

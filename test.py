@@ -67,7 +67,12 @@ if __name__ == '__main__':
     if args_cli.loss_names:
         args.loss_names = args_cli.loss_names
 
-    checkpoint_path = args_cli.checkpoint or op.join(args.output_dir, 'best0.pth')
+    if args_cli.checkpoint:
+        checkpoint_path = args_cli.checkpoint
+    else:
+        best_ckpt = op.join(args.output_dir, 'best0.pth')
+        final_ckpt = op.join(args.output_dir, 'final.pth')
+        checkpoint_path = best_ckpt if op.exists(best_ckpt) else final_ckpt
     args.loss_names = normalize_finetune_loss_names(args.loss_names)
 
     logger = setup_logger('IRRA', save_dir=args.output_dir, if_train=args.training)

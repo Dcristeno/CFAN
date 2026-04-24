@@ -29,6 +29,8 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
     #     logger.info("Validation before training - Epoch: {}".format(-1))
     #     top1 = evaluator.eval(model.module.eval())
     logger.info('start training')
+    if evaluator is None:
+        logger.info('intermediate validation is disabled; training will save final.pth only')
 
     meters = {
         "loss": AverageMeter(),
@@ -54,6 +56,7 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
     tb_writer = SummaryWriter(log_dir=args.output_dir)
 
     best_rsum = 0.0
+    best_epoch = None
 
     # train
     for epoch in range(start_epoch, num_epoch + 1):
@@ -130,7 +133,7 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
                 "Epoch {} done. Time per batch: {:.3f}[min] Speed: {:.1f}[samples/s]"
                 .format(epoch, time_per_batch,
                         train_loader.batch_size / time_per_batch))
-        if epoch % eval_period == 0:
+        if evaluator is not None and eval_period > 0 and epoch % eval_period == 0:
             logger.info(f"best RSum: {best_rsum}")
             if get_rank() == 0:
                 logger.info("Validation Results - Epoch: {}".format(epoch))
@@ -145,9 +148,15 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
                 if best_rsum < rsum:
                     best_rsum = rsum
                     arguments["epoch"] = epoch
+                    best_epoch = epoch
                     checkpointer.save("best0", **arguments)
+    arguments["epoch"] = num_epoch
     if get_rank() == 0:
-        logger.info(f"best RSum: {best_rsum} at epoch {arguments['epoch']}")
+        checkpointer.save("final", **arguments)
+        if best_epoch is not None:
+            logger.info(f"best RSum: {best_rsum} at epoch {best_epoch}")
+        else:
+            logger.info("No intermediate validation was run. Saved final checkpoint as final.pth")
 
 
 def do_inference(model, test_img_loader, test_txt_loader):

@@ -7,6 +7,7 @@ CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
 FINETUNE_INIT="${FINETUNE_INIT:-/home/wuyong/data/HAM/HAM_checkpoint/random100w_2HAMcaptions/best0.pth}"
 RUN_NAME="${RUN_NAME:-cfan_finetune}"
 SEED="${SEED:-1}"
+SKIP_FINETUNE_EVAL="${SKIP_FINETUNE_EVAL:-1}"
 LOSS_NAMES="${LOSS_NAMES:-cda+fta}"
 TRAIN_SAMPLES_PER_ID="${TRAIN_SAMPLES_PER_ID:-0}"
 FINETUNE_VAL_RATIO="${FINETUNE_VAL_RATIO:-0.1}"
@@ -73,6 +74,12 @@ args=(
   --root_dir "${DATA_ROOT}"
   --finetune "${FINETUNE_INIT}"
 )
+
+if [ "${SKIP_FINETUNE_EVAL}" = "1" ]; then
+  args+=(
+    --skip_finetune_eval
+  )
+fi
 
 if [ "${USE_SWANLAB}" = "1" ]; then
   args+=(
