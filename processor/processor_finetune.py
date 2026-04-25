@@ -34,11 +34,14 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
 
     meters = {
         "loss": AverageMeter(),
+        "base_loss": AverageMeter(),
+        "base_aerial_text": AverageMeter(),
+        "base_ground_text": AverageMeter(),
         "cda_loss": AverageMeter(),
         "triad_loss": AverageMeter(),
-        "triad_aerial_text_loss": AverageMeter(),
-        "triad_ground_text_loss": AverageMeter(),
-        "triad_aerial_ground_loss": AverageMeter(),
+        "triad_aerial_text": AverageMeter(),
+        "triad_ground_text": AverageMeter(),
+        "triad_aerial_ground": AverageMeter(),
         "bridge_loss": AverageMeter(),
         "bridge_pair_loss": AverageMeter(),
         "bridge_distill_loss": AverageMeter(),
@@ -86,11 +89,14 @@ def do_train(start_epoch, args, model, train_loader, evaluator, optimizer,
             batch_size = batch['images'].shape[0]
             
             meters['loss'].update(total_loss.item(), batch_size)
+            meters['base_loss'].update(ret.get('base_loss', 0), batch_size)
+            meters['base_aerial_text'].update(ret.get('base_aerial_text', 0), batch_size)
+            meters['base_ground_text'].update(ret.get('base_ground_text', 0), batch_size)
             meters['cda_loss'].update(ret.get('cda_loss', 0), batch_size)
             meters['triad_loss'].update(ret.get('triad_loss', 0), batch_size)
-            meters['triad_aerial_text_loss'].update(ret.get('triad_aerial_text_loss', 0), batch_size)
-            meters['triad_ground_text_loss'].update(ret.get('triad_ground_text_loss', 0), batch_size)
-            meters['triad_aerial_ground_loss'].update(ret.get('triad_aerial_ground_loss', 0), batch_size)
+            meters['triad_aerial_text'].update(ret.get('triad_aerial_text', 0), batch_size)
+            meters['triad_ground_text'].update(ret.get('triad_ground_text', 0), batch_size)
+            meters['triad_aerial_ground'].update(ret.get('triad_aerial_ground', 0), batch_size)
             meters['bridge_loss'].update(ret.get('bridge_loss', 0), batch_size)
             meters['bridge_pair_loss'].update(ret.get('bridge_pair_loss', 0), batch_size)
             meters['bridge_distill_loss'].update(ret.get('bridge_distill_loss', 0), batch_size)

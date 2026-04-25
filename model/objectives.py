@@ -233,9 +233,9 @@ def compute_triad_sdm_terms(
     aerial_ground_loss = compute_sdm(aerial_fetures, ground_features, pid, logit_scale)
 
     return {
-        "triad_aerial_text_loss": aerial_text_loss,
-        "triad_ground_text_loss": ground_text_loss,
-        "triad_aerial_ground_loss": aerial_ground_loss,
+        "triad_aerial_text": aerial_text_loss,
+        "triad_ground_text": ground_text_loss,
+        "triad_aerial_ground": aerial_ground_loss,
     }
 
 def compute_ground_to_aerial_bridge_terms(
