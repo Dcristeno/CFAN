@@ -218,6 +218,26 @@ def compute_selective_align_loss(aerial_fetures, ground_features, text_fetures, 
 
     return loss
 
+def compute_triad_sdm_terms(
+    aerial_fetures,
+    ground_features,
+    text_fetures,
+    pid,
+    logit_scale,
+):
+    if ground_features is None:
+        raise ValueError("triad loss requires ground image features, but got None.")
+
+    aerial_text_loss = compute_sdm(aerial_fetures, text_fetures, pid, logit_scale)
+    ground_text_loss = compute_sdm(ground_features, text_fetures, pid, logit_scale)
+    aerial_ground_loss = compute_sdm(aerial_fetures, ground_features, pid, logit_scale)
+
+    return {
+        "triad_aerial_text_loss": aerial_text_loss,
+        "triad_ground_text_loss": ground_text_loss,
+        "triad_aerial_ground_loss": aerial_ground_loss,
+    }
+
 def compute_ground_to_aerial_bridge_terms(
     aerial_fetures,
     ground_features,

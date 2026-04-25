@@ -269,6 +269,24 @@ class IRRA(nn.Module):
             ret.update({'cda_loss': objectives.compute_selective_align_loss(i_feats, g_i_feats, t_feats, batch['pids'], logit_scale)})
             # ret.update({'cda_loss': objectives.compute_sdm(i_feats, t_feats, batch['pids'], logit_scale)}) # 仅使用这个就是Base
 
+        if 'triad' in self.current_task:
+            if g_i_feats is None:
+                raise ValueError("triad loss requires ground image features, but the current batch does not provide them.")
+            triad_terms = objectives.compute_triad_sdm_terms(
+                i_feats,
+                g_i_feats,
+                t_feats,
+                batch['pids'],
+                logit_scale,
+            )
+            weighted_aerial_text_loss = triad_terms["triad_aerial_text_loss"] * self.args.triad_aerial_text_weight
+            weighted_ground_text_loss = triad_terms["triad_ground_text_loss"] * self.args.triad_ground_text_weight
+            weighted_aerial_ground_loss = triad_terms["triad_aerial_ground_loss"] * self.args.triad_aerial_ground_weight
+            ret.update({'triad_aerial_text_loss': weighted_aerial_text_loss})
+            ret.update({'triad_ground_text_loss': weighted_ground_text_loss})
+            ret.update({'triad_aerial_ground_loss': weighted_aerial_ground_loss})
+            ret.update({'triad_loss': weighted_aerial_text_loss + weighted_ground_text_loss + weighted_aerial_ground_loss})
+
         if 'bridge' in self.current_task:
             if g_i_feats is None:
                 raise ValueError("bridge loss requires ground image features, but the current batch does not provide them.")
