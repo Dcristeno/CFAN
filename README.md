@@ -28,6 +28,12 @@ CUDA_VISIBLE_DEVICES=0 \
 bash finetune.sh
 ```
 
+On the default server setup, this is equivalent to:
+
+```bash
+bash finetune.sh
+```
+
 ## Test
 
 ```bash
