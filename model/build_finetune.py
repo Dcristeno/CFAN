@@ -9,7 +9,7 @@ class IRRA(nn.Module):
     """Minimal AERI finetune baseline.
 
     The only supported training objective is:
-        base = aerial-text SDM + ground-text SDM + aerial-ground SDM
+        base = aerial-text SDM + ground-text SDM
     """
 
     def __init__(self, args, num_classes=11003):
@@ -72,7 +72,6 @@ class IRRA(nn.Module):
         base_loss = (
             base_terms["base_aerial_text"]
             + base_terms["base_ground_text"]
-            + base_terms["base_aerial_ground"]
         )
 
         return {

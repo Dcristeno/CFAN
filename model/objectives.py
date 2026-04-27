@@ -21,12 +21,11 @@ def compute_sdm(image_features, text_features, pid, logit_scale, epsilon=1e-8):
 
 
 def compute_aeri_base_sdm_terms(aerial_features, ground_features, text_features, pid, logit_scale):
-    """Plain AERI baseline: aerial-text + ground-text + aerial-ground SDM."""
+    """Plain AERI baseline: aerial-text + ground-text SDM."""
     if ground_features is None:
         raise ValueError("AERI base loss requires ground image features, but got None.")
 
     return {
         "base_aerial_text": compute_sdm(aerial_features, text_features, pid, logit_scale),
         "base_ground_text": compute_sdm(ground_features, text_features, pid, logit_scale),
-        "base_aerial_ground": compute_sdm(aerial_features, ground_features, pid, logit_scale),
     }
