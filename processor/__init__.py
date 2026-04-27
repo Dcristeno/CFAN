@@ -1,1 +1,3 @@
-from .processor import do_pretrain, do_inference
+from .processor import do_inference
+
+__all__ = ["do_inference"]
