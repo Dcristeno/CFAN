@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 from .AGData import AGData, AGDataAttr, AGSGData
 from .aeripedes import AERIPEDES
 from .agtbpr import AG_ReID
-from .bases import ImageDataset, ImageTextDataset, ImageTextMLMDataset, TextDataset
+from .bases import ImageDataset, ImageTextMLMDataset, TextDataset
 
 
 __factory = {
