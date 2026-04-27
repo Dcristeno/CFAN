@@ -4,8 +4,6 @@ from torch.utils.data import Dataset
 import os.path as osp
 import logging
 import torch
-from collections import defaultdict
-from PIL import Image
 from utils.iotools import read_image
 from utils.simple_tokenizer import SimpleTokenizer
 from prettytable import PrettyTable
@@ -146,20 +144,12 @@ class ImageTextMLMDataset(Dataset):
                  dataset,
                  transform=None,
                  text_length: int = 77,
-                 truncate: bool = True,
-                 tile_mix_grid: int = 0,
-                 tile_mix_prob: float = 0.0):
+                 truncate: bool = True):
         self.dataset = dataset
         self.transform = transform
         self.text_length = text_length
         self.truncate = truncate
-        self.tile_mix_grid = int(tile_mix_grid)
-        self.tile_mix_prob = float(tile_mix_prob)
-
         self.tokenizer = SimpleTokenizer()
-        self.pid_to_indices = defaultdict(list)
-        for idx, sample in enumerate(self.dataset):
-            self.pid_to_indices[sample[0]].append(idx)
 
     def __len__(self):
         return len(self.dataset)
@@ -167,8 +157,6 @@ class ImageTextMLMDataset(Dataset):
     def __getitem__(self, index):
         pid, img_path, g_path, caption = self.dataset[index][:5]
         img = read_image(img_path)
-        if self.tile_mix_grid > 1 and random.random() < self.tile_mix_prob:
-            img = self._build_same_pid_tile_mix(index, pid, img)
         g = read_image(g_path)
         if self.transform is not None:
             img = self.transform(img)
@@ -185,39 +173,6 @@ class ImageTextMLMDataset(Dataset):
         }
 
         return ret
-
-    def _build_same_pid_tile_mix(self, index, pid, base_img):
-        candidate_indices = self.pid_to_indices.get(pid, [])
-        if not candidate_indices:
-            return base_img
-
-        partner_index = random.choice(candidate_indices)
-        if len(candidate_indices) > 1:
-            while partner_index == index:
-                partner_index = random.choice(candidate_indices)
-
-        partner_img_path = self.dataset[partner_index][1]
-        partner_img = read_image(partner_img_path)
-        if partner_img.size != base_img.size:
-            partner_img = partner_img.resize(base_img.size, Image.BILINEAR)
-
-        width, height = base_img.size
-        grid = self.tile_mix_grid
-        mixed = Image.new('RGB', (width, height))
-        x_points = [round(i * width / grid) for i in range(grid + 1)]
-        y_points = [round(i * height / grid) for i in range(grid + 1)]
-
-        for gy in range(grid):
-            top = y_points[gy]
-            bottom = y_points[gy + 1]
-            for gx in range(grid):
-                left = x_points[gx]
-                right = x_points[gx + 1]
-                box = (left, top, right, bottom)
-                source_img = base_img if random.random() < 0.5 else partner_img
-                mixed.paste(source_img.crop(box), box)
-
-        return mixed
 
     def _build_random_masked_tokens_and_labels(self, tokens):
         """
