@@ -109,7 +109,12 @@ class ImageTextMLMDataset(Dataset):
         return len(self.dataset)
 
     def __getitem__(self, index):
-        pid, img_path, g_path, caption = self.dataset[index][:5]
+        sample = self.dataset[index]
+        if len(sample) >= 5:
+            pid, img_path, g_path, caption = sample[0], sample[2], sample[3], sample[4]
+        else:
+            pid, img_path, g_path, caption = sample
+
         img = read_image(img_path)
         g = read_image(g_path)
         if self.transform is not None:
