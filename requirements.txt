@@ -10,5 +10,5 @@ tensorboard==2.14.0
 easydict==1.13
 ftfy==6.2.3
 prettytable==3.11.0
-regex
+regex==2024.11.6
 swanlab==0.7.15
