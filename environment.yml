@@ -5,20 +5,19 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - python=3.8
+  - python=3.8.20
   - pip
-  - numpy
-  - pillow
-  - pyyaml
-  - tqdm
-  - tensorboard
-  - pytorch
-  - torchvision
-  - torchaudio
+  - numpy=1.24.3
+  - pillow=10.4.0
+  - pytorch=2.0.0
+  - torchvision=0.15.0
   - pytorch-cuda=11.8
   - pip:
-      - easydict
-      - ftfy
-      - prettytable
+      - easydict==1.13
+      - ftfy==6.2.3
+      - prettytable==3.11.0
+      - PyYAML==6.0.3
       - regex
-      - swanlab
+      - tensorboard==2.14.0
+      - tqdm==4.67.1
+      - swanlab==0.7.15

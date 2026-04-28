@@ -17,6 +17,15 @@ If PyTorch needs to match a different CUDA version on a server, install the matc
 pip install -r requirements.txt
 ```
 
+The pinned configuration mirrors the verified server setup:
+
+```text
+Python 3.8.20
+PyTorch 2.0.0 / CUDA 11.8
+TorchVision 0.15.0
+SwanLab 0.7.15
+```
+
 ## Baseline Objective
 
 `LOSS_NAMES=base` is the only supported training objective:
