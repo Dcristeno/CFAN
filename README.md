@@ -2,6 +2,21 @@
 
 This branch is a minimal AERI-PEDES baseline. It removes the previous experimental modules and keeps only the plain aerial-ground-text training framework.
 
+## Environment
+
+Conda is recommended:
+
+```bash
+conda env create -f environment.yml
+conda activate irra
+```
+
+If PyTorch needs to match a different CUDA version on a server, install the matching PyTorch build first, then install the remaining Python packages with:
+
+```bash
+pip install -r requirements.txt
+```
+
 ## Baseline Objective
 
 `LOSS_NAMES=base` is the only supported training objective:
@@ -10,7 +25,6 @@ This branch is a minimal AERI-PEDES baseline. It removes the previous experiment
 base_loss =
   SDM(aerial, text)
 + SDM(ground, text)
-+ SDM(aerial, ground)
 ```
 
 No CDA, FTA, bridge, prototype, track memory, MoE, joint loss, k=2 sampling, heuristic sampling, or tile mixing is included.

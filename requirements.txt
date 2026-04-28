@@ -1,0 +1,13 @@
+numpy
+pillow
+pyyaml
+tqdm
+tensorboard
+torch
+torchvision
+torchaudio
+easydict
+ftfy
+prettytable
+regex
+swanlab
